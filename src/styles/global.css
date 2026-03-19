@@ -1,0 +1,16 @@
+:root {
+  --pixel-font: "Press Start 2P", monospace;
+  --body-font: "DotGothic16", "Noto Sans KR", monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #14141a; color: #ccc; font-family: var(--body-font); min-height: 100vh; overflow-x: hidden; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+input::placeholder { color: #444; }
+
+@keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:.3} }
+@keyframes pulse { 0%,100%{opacity:.6} 50%{opacity:1} }
+@keyframes slideDown { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes alertPulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)} 50%{box-shadow:0 0 8px 2px rgba(239,68,68,.2)} }
