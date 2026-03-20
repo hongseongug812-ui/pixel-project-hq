@@ -14,7 +14,9 @@ const GPT_MODEL: Record<string, string> = {
   "o1-mini": "o1-mini",
 };
 
-const MAX_HISTORY = 40; // 저장할 최대 메시지 수
+const MAX_HISTORY = 40;   // 저장할 최대 메시지 수
+const SUMMARY_KEY = (id: string) => `phq_agent_summary_${id}`; // 요약 캐시 키
+const SUMMARIZE_AFTER = 12; // 이 턴 이상이면 앞부분 요약 주입
 
 interface Message { role: "user" | "assistant"; content: string; }
 
@@ -82,9 +84,36 @@ export default function AgentChat({ agent, onClose }: Props) {
       return;
     }
 
+    // 오래된 대화 요약 로드 (캐시)
+    let cachedSummary = "";
+    try { cachedSummary = localStorage.getItem(SUMMARY_KEY(agent.id)) ?? ""; } catch { /* ignore */ }
+
+    // 대화가 SUMMARIZE_AFTER 턴 이상이면 앞부분 요약 생성 (비동기, 백그라운드)
+    const allMsgs = [...messages, userMsg];
+    if (allMsgs.length > SUMMARIZE_AFTER && !cachedSummary && API_KEY) {
+      const toSummarize = allMsgs.slice(0, allMsgs.length - 6);
+      fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
+        body: JSON.stringify({
+          model: "gpt-4o-mini", max_tokens: 200,
+          messages: [
+            { role: "system", content: "다음 대화를 3문장 이내로 한국어로 요약하세요. 핵심 결정사항과 맥락만 담아주세요." },
+            { role: "user", content: toSummarize.map(m => `${m.role === "user" ? "사용자" : agent.name}: ${m.content}`).join("\n") },
+          ],
+        }),
+      })
+        .then(r => r.json())
+        .then((d: { choices: [{ message: { content: string } }] }) => {
+          const summary = d.choices[0].message.content.trim();
+          try { localStorage.setItem(SUMMARY_KEY(agent.id), summary); } catch { /* ignore */ }
+        })
+        .catch(() => { /* silent */ });
+    }
+
     const systemPrompt = `당신은 Pixel Project HQ의 ${agent.name}입니다.
 계급: ${agent.rank} | 역할: ${agent.role} | AI 모델: ${agent.aiModel}
-성격: ${agent.personality}
+성격: ${agent.personality}${cachedSummary ? `\n\n=== 이전 대화 요약 ===\n${cachedSummary}` : ""}
 
 계급과 성격에 맞는 어조로 한국어로 답변하세요.
 - CEO는 전략적이고 결단력 있게
@@ -97,7 +126,9 @@ export default function AgentChat({ agent, onClose }: Props) {
 
     try {
       const model = GPT_MODEL[agent.aiModel] ?? "gpt-4o-mini";
-      const history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
+      // 최근 10턴만 컨텍스트로 사용 (요약이 있으면 앞부분 생략)
+      const recentMsgs = cachedSummary ? allMsgs.slice(-10) : allMsgs;
+      const history = recentMsgs.map(m => ({ role: m.role, content: m.content }));
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
@@ -120,7 +151,9 @@ export default function AgentChat({ agent, onClose }: Props) {
   const rankColor = RANK_COLOR[agent.rank] ?? "#888";
 
   return (
-    <div style={{
+    <div
+      role="dialog" aria-modal="true" aria-label={`${agent.name} 에이전트와 대화`}
+      style={{
       position: "fixed", bottom: 16, left: 16, width: 300, height: 420,
       background: "#0d0d16", border: `1px solid ${rankColor}44`,
       borderRadius: 4, zIndex: 900, display: "flex", flexDirection: "column",
@@ -140,7 +173,7 @@ export default function AgentChat({ agent, onClose }: Props) {
           </div>
           <div style={{ fontFamily: PF, fontSize: 4, color: "#4cc9f0", marginTop: 1 }}>🤖 {agent.aiModel}</div>
         </div>
-        <button onClick={() => { const reset = [greeting]; setMessages(reset); saveHistory(agent.id, reset); }} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#555", background: "#111118", border: "1px solid #1e1e28", padding: "3px 6px", borderRadius: 2, lineHeight: 1, marginRight: 4 }}>CLR</button>
+        <button onClick={() => { const reset = [greeting]; setMessages(reset); saveHistory(agent.id, reset); try { localStorage.removeItem(SUMMARY_KEY(agent.id)); } catch { /* ignore */ } }} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#555", background: "#111118", border: "1px solid #1e1e28", padding: "3px 6px", borderRadius: 2, lineHeight: 1, marginRight: 4 }}>CLR</button>
         <button onClick={onClose} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 7, color: "#888", background: "#1a1a24", border: `1px solid ${rankColor}44`, padding: "3px 7px", borderRadius: 2, lineHeight: 1 }}>✕</button>
       </div>
 

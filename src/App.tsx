@@ -30,6 +30,8 @@ import AIChat             from "./components/AIChat";
 import MyPage             from "./components/MyPage";
 import AgentChat          from "./components/AgentChat";
 import KanbanView         from "./components/KanbanView";
+import AppHeader          from "./components/AppHeader";
+import AppToolbar         from "./components/AppToolbar";
 
 import type { Project } from "./types";
 
@@ -214,64 +216,27 @@ export default function App() {
         </div>
       )}
 
-      {/* Header */}
-      <header style={{ padding: "8px 14px", borderBottom: "1px solid #1a1a28", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6, background: "#0a0a10" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontFamily: PF, fontSize: 9, color: "#facc15", letterSpacing: 2, textShadow: "0 0 10px #facc1566" }}>
-            <span style={{ color: "#ef4444" }}>⬤</span> PIXEL HQ
-          </span>
-          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-            <div style={{ width: 5, height: 5, borderRadius: "50%", background: isConfigured ? "#4ade80" : "#f59e0b", boxShadow: `0 0 5px ${isConfigured ? "#4ade80" : "#f59e0b"}` }} />
-            <span style={{ fontFamily: PF, fontSize: 4, color: isConfigured ? "#4ade8088" : "#f59e0b88" }}>{isConfigured ? "CLOUD" : "LOCAL"}</span>
-          </div>
-          {saving && <span style={{ fontFamily: BF, fontSize: 11, color: "#60a5fa" }}>저장 중...</span>}
-          {liveCount > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-              <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 5px #4ade80" }} />
-              <span style={{ fontFamily: PF, fontSize: 4, color: "#4ade80" }}>{liveCount} LIVE</span>
-            </div>
-          )}
-        </div>
-        <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-          {([["PRJ", projects.length, "#60a5fa"], ["ACTIVE", projects.filter(p => p.status === "active" || p.status === "pivot").length, "#4ade80"], ["WARN", negl, negl ? "#ef4444" : "#2a2a38"], ["SRV", liveCount, liveCount ? "#a78bfa" : "#2a2a38"]] as [string, number, string][]).map(([l, v, c]) => (
-            <div key={l} style={{ background: "#0e0e16", padding: "2px 7px", border: `1px solid ${c}22`, display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontFamily: PF, fontSize: 4, color: "#333" }}>{l}</span>
-              <span style={{ fontFamily: PF, fontSize: 8, color: c }}>{v}</span>
-            </div>
-          ))}
-          <button onClick={() => setShowMyPage(true)} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#a78bfa", background: "#111118", border: "1px solid #2a1a4a", padding: "2px 6px" }}>⚙ MY</button>
-          {user && (
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginLeft: 4 }}>
-              <span style={{ fontFamily: BF, fontSize: 11, color: "#444" }}>{user.email?.split("@")[0]}</span>
-              <button onClick={signOut} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#444", background: "#111118", border: "1px solid #1e1e28", padding: "2px 5px" }}>OUT</button>
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* Toolbar */}
-      <div style={{ padding: "5px 14px", borderBottom: "1px solid #141420", display: "flex", gap: 3, alignItems: "center", flexWrap: "wrap", background: "#0c0c14" }}>
-        {viewMode === "god" && (
-          <button onClick={() => setShowSidebar(s => !s)} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 8, padding: "3px 6px", color: showSidebar ? "#facc15" : "#444", background: "#111118", border: "1px solid #1e1e28", marginRight: 4 }}>☰</button>
-        )}
-        <div style={{ display: "flex", marginRight: 6, border: "1px solid #1e1e28" }}>
-          {([["god", "🏢 GOD"], ["kanban", "📌 KANBAN"], ["portfolio", "📋 FOLIO"]] as [string, string][]).map(([v, l]) => (
-            <button key={v} onClick={() => setViewMode(v)} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, padding: "4px 9px", color: viewMode === v ? "#000" : "#444", background: viewMode === v ? "#facc15" : "#111118" }}>{l}</button>
-          ))}
-        </div>
-        <div className="phq-filters" style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-          {viewMode === "god" && [{ k: "all", l: "ALL" }, { k: "active", l: "ACTIVE" }, { k: "pivot", l: "PIVOT" }, { k: "paused", l: "PAUSED" }, { k: "complete", l: "DONE" }].map(f => (
-            <button key={f.k} onClick={() => setFilter(f.k)} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 5, padding: "3px 7px", color: filter === f.k ? "#000" : "#444", background: filter === f.k ? "#facc15" : "#111118", border: `1px solid ${filter === f.k ? "#b89a0d" : "#1e1e28"}` }}>{f.l}</button>
-          ))}
-        </div>
-        <div style={{ flex: 1 }} />
-        {viewMode === "god" && (
-          <input className="phq-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 검색..."
-            style={{ fontFamily: BF, fontSize: 11, color: "#aaa", background: "#111118", border: "1px solid #1e1e28", padding: "3px 8px", outline: "none", width: 160 }} />
-        )}
-        <button onClick={() => { setShowAdd(true); setFileAnalysis(null); }} style={{ all: "unset", cursor: "pointer", fontFamily: BF, fontSize: 13, fontWeight: "bold", color: "#000", background: "#4ade80", padding: "3px 11px", boxShadow: "0 0 8px #4ade8044" }}>+ 추가</button>
-        <span style={{ fontFamily: BF, fontSize: 11, color: "#1e1e2e" }}>Ctrl+N · ESC</span>
-      </div>
+      <AppHeader
+        user={user}
+        saving={saving}
+        projectCount={projects.length}
+        activeCount={projects.filter(p => p.status === "active" || p.status === "pivot").length}
+        neglectCount={negl}
+        liveCount={liveCount}
+        onMyPage={() => setShowMyPage(true)}
+        onSignOut={signOut}
+      />
+      <AppToolbar
+        viewMode={viewMode}
+        filter={filter}
+        search={search}
+        showSidebar={showSidebar}
+        onViewMode={setViewMode}
+        onFilter={setFilter}
+        onSearch={setSearch}
+        onToggleSidebar={() => setShowSidebar(s => !s)}
+        onAdd={() => { setShowAdd(true); setFileAnalysis(null); }}
+      />
 
       {/* Main */}
       <div style={{ display: "flex", minHeight: "calc(100vh - 80px)" }}>

@@ -58,12 +58,15 @@ export default function AddModal({ onAdd, onClose }: AddModalProps) {
   ];
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.9)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto", padding: "20px 0" }}
-      onClick={onClose}>
+    <div
+      role="dialog" aria-modal="true" aria-labelledby="add-modal-title"
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.9)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto", padding: "20px 0" }}
+      onClick={onClose}
+    >
       <div onClick={e => e.stopPropagation()} style={{ width: 350, background: "#0e0e12", border: "2px solid #facc1533", padding: 16, display: "flex", flexDirection: "column", gap: 9 }}>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontFamily: PF, fontSize: 7, color: "#facc15" }}>+ NEW PROJECT</div>
+          <div id="add-modal-title" style={{ fontFamily: PF, fontSize: 7, color: "#facc15" }}>+ NEW PROJECT</div>
           <button onClick={() => setFeatured(f => !f)} style={{
             all: "unset", cursor: "pointer", fontFamily: BF, fontSize: 12,
             color: featured ? "#facc15" : "#333",
@@ -182,8 +185,8 @@ export default function AddModal({ onAdd, onClose }: AddModalProps) {
         </div>
 
         <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
-          <button onClick={submit} style={{ all: "unset", cursor: "pointer", flex: 1, fontFamily: BF, fontSize: 14, fontWeight: "bold", color: "#000", background: "#4ade80", padding: 7, textAlign: "center" }}>생성</button>
-          <button onClick={onClose} style={{ all: "unset", cursor: "pointer", flex: 1, fontFamily: BF, fontSize: 14, color: "#555", background: "#1a1a1e", padding: 7, textAlign: "center", border: "1px solid #222" }}>취소</button>
+          <button onClick={submit} aria-label="프로젝트 생성" style={{ all: "unset", cursor: "pointer", flex: 1, fontFamily: BF, fontSize: 14, fontWeight: "bold", color: "#000", background: "#4ade80", padding: 7, textAlign: "center" }}>생성</button>
+          <button onClick={onClose} aria-label="취소하고 닫기" style={{ all: "unset", cursor: "pointer", flex: 1, fontFamily: BF, fontSize: 14, color: "#555", background: "#1a1a1e", padding: 7, textAlign: "center", border: "1px solid #222" }}>취소</button>
         </div>
       </div>
     </div>

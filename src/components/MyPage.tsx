@@ -94,14 +94,17 @@ export default function MyPage({ onClose }: Props) {
   const sectionStyle = { marginBottom: 20 };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center" }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      role="dialog" aria-modal="true" aria-labelledby="mypage-title"
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div style={{ background: "#0d0d16", border: "1px solid #1e1e2e", width: 520, maxHeight: "90vh", overflowY: "auto", borderRadius: 4 }}>
 
         {/* Header */}
         <div style={{ padding: "12px 16px", borderBottom: "1px solid #1a1a28", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontFamily: PF, fontSize: 8, color: "#facc15" }}>⚙ MY PAGE</span>
-          <button onClick={onClose} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 6, color: "#444", padding: "2px 6px", border: "1px solid #1e1e28" }}>✕ 닫기</button>
+          <span id="mypage-title" style={{ fontFamily: PF, fontSize: 8, color: "#facc15" }}>⚙ MY PAGE</span>
+          <button onClick={onClose} aria-label="설정 닫기" style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 6, color: "#444", padding: "2px 6px", border: "1px solid #1e1e28" }}>✕ 닫기</button>
         </div>
 
         <div style={{ padding: 16 }}>
