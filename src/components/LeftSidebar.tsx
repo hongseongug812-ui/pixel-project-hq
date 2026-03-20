@@ -2,6 +2,7 @@ import { useState } from "react";
 import { PF, BF, ROOMS } from "../data/constants";
 import { neglect, daysSince } from "../utils/helpers";
 import { useLogs } from "../contexts/LogsContext";
+import { isTelegramConfigured, sendTelegram, buildDailyBriefing } from "../lib/telegram";
 import type { Project, AgentState, ServerStatsMap } from "../types";
 
 const UPTIME_POINTS = Array.from({ length: 36 }, (_, i) => `${i * 5},${1 + Math.random() * 10}`).join(" ");
@@ -228,6 +229,16 @@ interface LeftSidebarProps {
 
 export default function LeftSidebar({ projects, agentState, serverStats }: LeftSidebarProps) {
   const { logs } = useLogs();
+  const [sending, setSending] = useState(false);
+
+  async function handleBriefing() {
+    setSending(true);
+    const msg = buildDailyBriefing(projects);
+    const ok = await sendTelegram(msg);
+    setSending(false);
+    if (!ok) alert("Telegram 전송 실패\n.env에 VITE_TELEGRAM_BOT_TOKEN, VITE_TELEGRAM_CHAT_ID 설정 필요");
+  }
+
   return (
     <div style={{
       width: 230, minWidth: 210, flexShrink: 0, padding: 8,
@@ -240,6 +251,21 @@ export default function LeftSidebar({ projects, agentState, serverStats }: LeftS
       <ProjectHealth projects={projects} />
       <AgentStatus agentState={agentState} />
       <ActivityLog logs={logs} />
+
+      {/* Telegram briefing */}
+      <button
+        onClick={handleBriefing}
+        disabled={sending}
+        style={{
+          all: "unset", cursor: sending ? "not-allowed" : "pointer",
+          fontFamily: PF, fontSize: 5, color: isTelegramConfigured ? "#facc15" : "#333",
+          background: "#0c0c14", border: `1px solid ${isTelegramConfigured ? "#facc1533" : "#1a1a28"}`,
+          padding: "6px 8px", textAlign: "center",
+        }}
+        title={isTelegramConfigured ? "텔레그램으로 브리핑 전송" : ".env에 TELEGRAM 키 설정 필요"}
+      >
+        {sending ? "전송 중..." : isTelegramConfigured ? "📨 텔레그램 브리핑" : "📨 텔레그램 (미설정)"}
+      </button>
     </div>
   );
 }
