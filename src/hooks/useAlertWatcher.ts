@@ -3,25 +3,26 @@ import { sendTelegram, isTelegramConfigured } from "../lib/telegram";
 import type { Project } from "../types";
 
 const DISCORD_WEBHOOK = (import.meta.env.VITE_DISCORD_WEBHOOK as string | undefined)?.trim();
-const CHECK_INTERVAL = 10 * 60 * 1000; // 10분마다 체크
+const CHECK_INTERVAL  = 10 * 60 * 1000; // 10분마다 체크
+const MAX_ALERTS_PER_CYCLE = 3;          // 회당 최대 알림 수
+const MAX_FAILURES = 3;                  // 이 횟수 초과 실패 시 채널 비활성화
 
 async function sendDiscord(text: string): Promise<boolean> {
   if (!DISCORD_WEBHOOK) return false;
   try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
     const res = await fetch(DISCORD_WEBHOOK, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: text }),
+      signal: ctrl.signal,
     });
+    clearTimeout(timer);
     return res.ok;
   } catch {
     return false;
   }
-}
-
-async function notify(text: string) {
-  if (isTelegramConfigured) sendTelegram(text);
-  if (DISCORD_WEBHOOK) sendDiscord(text);
 }
 
 interface Alert {
@@ -67,8 +68,21 @@ function detectAlerts(projects: Project[]): Alert[] {
 }
 
 export function useAlertWatcher(projects: Project[]) {
-  const sentRef = useRef<Set<string>>(new Set());
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sentRef      = useRef<Set<string>>(new Set());
+  const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tgFailures   = useRef(0);
+  const dcFailures   = useRef(0);
+
+  async function notify(text: string) {
+    if (isTelegramConfigured && tgFailures.current < MAX_FAILURES) {
+      const ok = await sendTelegram(text);
+      tgFailures.current = ok ? 0 : tgFailures.current + 1;
+    }
+    if (DISCORD_WEBHOOK && dcFailures.current < MAX_FAILURES) {
+      const ok = await sendDiscord(text);
+      dcFailures.current = ok ? 0 : dcFailures.current + 1;
+    }
+  }
 
   useEffect(() => {
     if (!isTelegramConfigured && !DISCORD_WEBHOOK) return;
@@ -76,19 +90,18 @@ export function useAlertWatcher(projects: Project[]) {
 
     async function check() {
       const alerts = detectAlerts(projects);
+      let sent = 0;
       for (const alert of alerts) {
+        if (sent >= MAX_ALERTS_PER_CYCLE) break;
         if (sentRef.current.has(alert.key)) continue;
         sentRef.current.add(alert.key);
         await notify(alert.text);
+        sent++;
       }
     }
 
-    // 즉시 1회 + 이후 주기적으로
     check();
     timerRef.current = setInterval(check, CHECK_INTERVAL);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [projects]);
 }

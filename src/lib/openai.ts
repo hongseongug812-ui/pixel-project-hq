@@ -17,6 +17,8 @@ interface ChatOptions {
 async function chat(messages: ChatMessage[], { model = "gpt-4o-mini", maxTokens = 800 }: ChatOptions = {}): Promise<string> {
   if (!API_KEY) throw new Error("OpenAI API 키가 설정되지 않았습니다.");
 
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 30_000);
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -24,7 +26,8 @@ async function chat(messages: ChatMessage[], { model = "gpt-4o-mini", maxTokens 
       Authorization: `Bearer ${API_KEY}`,
     },
     body: JSON.stringify({ model, max_tokens: maxTokens, messages }),
-  });
+    signal: ctrl.signal,
+  }).finally(() => clearTimeout(timer));
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({})) as { error?: { message?: string } };

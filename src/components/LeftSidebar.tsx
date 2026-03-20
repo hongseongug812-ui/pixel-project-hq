@@ -4,6 +4,7 @@ import { neglect, daysSince } from "../utils/helpers";
 import { useLogs } from "../contexts/LogsContext";
 import { isTelegramConfigured, sendTelegram, buildDailyBriefing } from "../lib/telegram";
 import type { PingHistory } from "../hooks/useServerStats";
+import { safeOpenUrl } from "../utils/security";
 import type { Project, AgentState, ServerStatsMap } from "../types";
 
 
@@ -20,10 +21,6 @@ function ServerMonitor({ projects, serverStats, pingHistory, pinging, onRecheck,
   const [expanded, setExpanded] = useState<number | string | null>(null);
   const deployed = projects.filter(p => p.serverUrl);
 
-  const openUrl = (url: string) => {
-    const full = url.startsWith("http") ? url : `https://${url}`;
-    try { window.open(new URL(full).href, "_blank", "noopener,noreferrer"); } catch { /* invalid */ }
-  };
 
   if (deployed.length === 0) return (
     <div style={{ background: "#090f09", border: "1px solid #4ade8022", borderRadius: 3, padding: 8 }}>
@@ -132,7 +129,7 @@ function ServerMonitor({ projects, serverStats, pingHistory, pinging, onRecheck,
                     {isPinging ? "핑중..." : "🔄 재핑"}
                   </button>
                   <button
-                    onClick={e => { e.stopPropagation(); openUrl(url); }}
+                    onClick={e => { e.stopPropagation(); safeOpenUrl(url); }}
                     style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#60a5fa", background: "#080c18", border: "1px solid #60a5fa33", padding: "4px 0", textAlign: "center" }}
                   >
                     ↗ 열기

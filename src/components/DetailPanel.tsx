@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { PF, BF, STATUS_MAP, ROOMS } from "../data/constants";
 import { neglect, daysSince } from "../utils/helpers";
+import { safeOpenUrl } from "../utils/security";
 import { suggestTasks, generateDescription, isOpenAIConfigured } from "../lib/openai";
 import type { Project, ProjectStatus, ProjectPriority } from "../types";
 
@@ -50,15 +51,6 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
   const done = p.tasks.filter(t => t.done).length;
   const d = daysSince(p.lastActivity);
 
-  const openUrl = (url: string | null) => {
-    if (!url) return;
-    const full = url.startsWith("http") ? url : `https://${url}`;
-    try {
-      const parsed = new URL(full);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return;
-      window.open(parsed.href, "_blank", "noopener,noreferrer");
-    } catch { /* invalid URL */ }
-  };
 
   const submitTask = () => {
     if (!newTask.trim()) return;
@@ -246,7 +238,7 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
               style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#000", background: "#4ade80", padding: "2px 5px" }}>LIVE</button>
           </div>
           {p.serverUrl && (
-            <button onClick={() => openUrl(p.serverUrl)} style={{
+            <button onClick={() => safeOpenUrl(p.serverUrl)} style={{
               all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
               marginTop: 3, padding: "3px 6px", background: "#081808", border: "1px solid #4ade8033", width: "100%", boxSizing: "border-box",
             }}>
@@ -265,7 +257,7 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
               style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#000", background: "#a78bfa", padding: "2px 4px" }}>GH</button>
           </div>
           {p.githubUrl && (
-            <button onClick={() => openUrl(p.githubUrl)} style={{
+            <button onClick={() => safeOpenUrl(p.githubUrl)} style={{
               all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
               marginTop: 3, padding: "3px 6px", background: "#0a080e", border: "1px solid #a78bfa33", width: "100%", boxSizing: "border-box",
             }}>

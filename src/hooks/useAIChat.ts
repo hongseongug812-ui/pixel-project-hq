@@ -1,5 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
+import { makeRateLimiter } from "../utils/security";
 import type { Project, ToastItem } from "../types";
+
+const MAX_MSG_LENGTH = 1000;
+const RATE_LIMIT_MS  = 1500; // 1.5초 쿨다운
 
 const API_KEY = (import.meta.env.VITE_OPENAI_API_KEY as string | undefined)?.trim();
 
@@ -110,6 +114,7 @@ ${list || "프로젝트 없음"}
 export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast: ToastFn) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const rateLimitRef = useRef(makeRateLimiter(RATE_LIMIT_MS));
 
   const pushAIMessage = useCallback((content: string) => {
     setMessages(prev => [...prev, { role: "assistant", content }]);
@@ -122,6 +127,14 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
       return;
     }
     if (!text.trim()) return;
+    if (text.length > MAX_MSG_LENGTH) {
+      toast(`메시지는 ${MAX_MSG_LENGTH}자 이내로 입력하세요.`, "warn", "⚠️");
+      return;
+    }
+    if (!rateLimitRef.current()) {
+      toast("요청이 너무 빠릅니다. 잠시 후 다시 시도하세요.", "warn", "⏳");
+      return;
+    }
 
     const userMsg: ChatMessage = { role: "user", content: text };
     setMessages(prev => [...prev, userMsg]);

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { PF, BF, ROOMS, STATUS_MAP } from "../data/constants";
+import { safeOpenUrl } from "../utils/security";
 import type { Project } from "../types";
 
 interface InitialsProps { name: string; color: string; size?: number; }
@@ -35,10 +36,6 @@ function PortfolioCard({ project: p, featured, onSelect }: PortfolioCardProps) {
     return months < 12 ? `${months}mo` : `${Math.round(months / 12)}yr`;
   })();
 
-  const openUrl = (url: string | null) => {
-    if (!url) return;
-    window.open(url.startsWith("http") ? url : `https://${url}`, "_blank", "noopener,noreferrer");
-  };
 
   return (
     <div
@@ -103,10 +100,10 @@ function PortfolioCard({ project: p, featured, onSelect }: PortfolioCardProps) {
           {duration && !p.startDate && <span style={{ fontFamily: BF, fontSize: 10, color: "#444" }}>{duration}</span>}
           <div style={{ flex: 1 }} />
           {p.serverUrl && (
-            <button onClick={e => { e.stopPropagation(); openUrl(p.serverUrl); }} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#000", background: "#4ade80", padding: "2px 6px" }}>LIVE ↗</button>
+            <button onClick={e => { e.stopPropagation(); safeOpenUrl(p.serverUrl); }} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#000", background: "#4ade80", padding: "2px 6px" }}>LIVE ↗</button>
           )}
           {p.githubUrl && (
-            <button onClick={e => { e.stopPropagation(); openUrl(p.githubUrl); }} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#a78bfa", background: "#a78bfa18", padding: "2px 6px", border: "1px solid #a78bfa33" }}>GH ↗</button>
+            <button onClick={e => { e.stopPropagation(); safeOpenUrl(p.githubUrl); }} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#a78bfa", background: "#a78bfa18", padding: "2px 6px", border: "1px solid #a78bfa33" }}>GH ↗</button>
           )}
         </div>
       </div>

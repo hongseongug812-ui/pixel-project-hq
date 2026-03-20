@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { isConfigured } from "../lib/supabase";
 import * as db from "../lib/db";
 import { useLogs } from "../contexts/LogsContext";
+import { validateProjectInput } from "../utils/security";
 import type { Project, ToastItem } from "../types";
 
 const KEY = "phq6";
@@ -37,6 +38,8 @@ export function useProjects(user: { id: string } | null, toast?: ToastFn) {
   }, [user]);
 
   const addProject = useCallback(async (pr: Project) => {
+    const err = validateProjectInput({ name: pr.name, description: pr.description, stack: pr.stack, tasks: pr.tasks, serverUrl: pr.serverUrl, githubUrl: pr.githubUrl });
+    if (err) { toast?.(`입력 오류: ${err.message}`, "error", "⚠️"); return; }
     if (isConfigured && user) {
       setSaving(true);
       try {
@@ -65,6 +68,8 @@ export function useProjects(user: { id: string } | null, toast?: ToastFn) {
   }, [user, pushLog]);
 
   const updateProject = useCallback(async (id: string | number, fields: Partial<Project>) => {
+    const err = validateProjectInput({ name: fields.name, description: fields.description, stack: fields.stack, tasks: fields.tasks, serverUrl: fields.serverUrl, githubUrl: fields.githubUrl });
+    if (err) { toast?.(`입력 오류: ${err.message}`, "error", "⚠️"); return; }
     setProjects(p => p.map(x => x.id === id ? { ...x, ...fields } : x));
     if (isConfigured && user) {
       try { await db.updateProject(id, fields); }

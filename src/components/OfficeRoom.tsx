@@ -82,9 +82,9 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, onSe
   [rows, cols, rm.floorA, rm.floorB]);
 
   return (
-    <div style={{ display: "inline-block", verticalAlign: "top" }}>
+    <div style={{ display: "inline-block", verticalAlign: "top", borderRadius: "4px 4px 0 0", overflow: "visible" }}>
       <svg width={rm.w} height={rm.h} viewBox={`0 0 ${rm.w} ${rm.h}`}
-        style={{ display: "block", imageRendering: "pixelated", borderRadius: "4px 4px 0 0", overflow: "hidden" }}>
+        style={{ display: "block", imageRendering: "pixelated", borderRadius: "4px 4px 0 0", overflow: "visible" }}>
         <defs>
           <filter id={`glow-${rm.key}`} x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation="2" result="blur" />
