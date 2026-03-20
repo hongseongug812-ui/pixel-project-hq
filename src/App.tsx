@@ -14,6 +14,7 @@ import { useFileDrop }    from "./hooks/useFileDrop";
 import { useMigration }   from "./hooks/useMigration";
 import { useUndoDelete }  from "./hooks/useUndoDelete";
 import { useAIChat }      from "./hooks/useAIChat";
+import { useAlertWatcher } from "./hooks/useAlertWatcher";
 
 import OfficeRoom         from "./components/OfficeRoom";
 import LeftSidebar        from "./components/LeftSidebar";
@@ -39,6 +40,7 @@ export default function App() {
   const { dropActive, setDropActive, fileAnalysis, setFileAnalysis, handleDrop } = useFileDrop(toast);
   const { migrateBanner, checkLocalData, handleMigrate, dismissMigrate } = useMigration(user, setProjects, toast, pushLog);
   const { handleDelete, handleUndo } = useUndoDelete(projects, deleteProject, addProject, setToasts, toast, setSelId);
+  useAlertWatcher(projects);
   const { messages: aiMessages, loading: aiLoading, send: aiSend, clear: aiClear } = useAIChat(
     projects,
     { updateProject, addProject, deleteProject, toggleTask, addTask },
@@ -264,7 +266,7 @@ export default function App() {
       <div style={{ display: "flex", minHeight: "calc(100vh - 80px)" }}>
         {viewMode === "god" && showSidebar && (
           <div className={`phq-sidebar${showSidebar ? " phq-sidebar-visible" : ""}`} style={{ display: "flex" }}>
-            <LeftSidebar projects={projects} agentState={agentState} serverStats={serverStats} />
+            <LeftSidebar projects={projects} agentState={agentState} serverStats={serverStats} onSelectProject={setSelId} />
           </div>
         )}
 

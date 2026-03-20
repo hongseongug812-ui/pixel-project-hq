@@ -92,17 +92,31 @@ function ProjectHealth({ projects }: ProjectHealthProps) {
   );
 }
 
-interface AlertsPanelProps { projects: Project[]; }
-function AlertsPanel({ projects }: AlertsPanelProps) {
-  const alerts: { icon: string; title: string; msg: string; color: string }[] = [];
+interface Alert { icon: string; title: string; msg: string; color: string; projectId: number | string; actions: string[]; }
+
+interface AlertsPanelProps { projects: Project[]; onSelect: (id: number | string) => void; }
+function AlertsPanel({ projects, onSelect }: AlertsPanelProps) {
+  const [expanded, setExpanded] = useState<number | null>(null);
+
+  const alerts: Alert[] = [];
   projects.forEach(p => {
     const nl = neglect(p.lastActivity, p.status);
-    if (nl === 2) alerts.push({ icon: "🚨", title: p.name, msg: `${daysSince(p.lastActivity)}일째 방치`, color: "#ef4444" });
-    else if (nl === 1) alerts.push({ icon: "⚠️", title: p.name, msg: `${daysSince(p.lastActivity)}일째 미관리`, color: "#f59e0b" });
+    const days = daysSince(p.lastActivity);
+    if (nl === 2) alerts.push({
+      icon: "🚨", title: p.name, msg: `${days}일째 방치`, color: "#ef4444", projectId: p.id,
+      actions: [`마지막 활동 ${days}일 전`, "→ 진행 상황 업데이트 필요", "→ 상태를 paused로 변경 고려", `→ 미완료 태스크: ${p.tasks.filter(t => !t.done).length}건`],
+    });
+    else if (nl === 1) alerts.push({
+      icon: "⚠️", title: p.name, msg: `${days}일째 미관리`, color: "#f59e0b", projectId: p.id,
+      actions: [`마지막 활동 ${days}일 전`, "→ 태스크 진행 상황 확인 필요", `→ 미완료 태스크: ${p.tasks.filter(t => !t.done).length}건`],
+    });
   });
   projects.filter(p => p.priority === "high" && (p.status === "active" || p.status === "pivot")).forEach(p => {
-    const pending = p.tasks.filter(t => !t.done).length;
-    if (pending > 0) alerts.push({ icon: "🔥", title: p.name, msg: `긴급 — 미완료 ${pending}건`, color: "#ef4444" });
+    const pending = p.tasks.filter(t => !t.done);
+    if (pending.length > 0) alerts.push({
+      icon: "🔥", title: p.name, msg: `긴급 — 미완료 ${pending.length}건`, color: "#ef4444", projectId: p.id,
+      actions: pending.map(t => `• ${t.text}`),
+    });
   });
 
   if (alerts.length === 0) return (
@@ -119,12 +133,39 @@ function AlertsPanel({ projects }: AlertsPanelProps) {
         <span style={{ fontFamily: BF, fontSize: 11, color: "#ef444466", marginLeft: "auto" }}>{alerts.length}건</span>
       </div>
       {alerts.slice(0, 4).map((a, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 5px", marginBottom: 2, background: "#220808", borderRadius: 2 }}>
-          <span style={{ fontSize: 10, flexShrink: 0 }}>{a.icon}</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: BF, fontSize: 11, color: a.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.title}</div>
-            <div style={{ fontFamily: BF, fontSize: 10, color: "#777" }}>{a.msg}</div>
+        <div key={i} style={{ marginBottom: 3 }}>
+          <div
+            onClick={() => setExpanded(expanded === i ? null : i)}
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 5px", background: "#220808", borderRadius: 2, cursor: "pointer" }}
+          >
+            <span style={{ fontSize: 10, flexShrink: 0 }}>{a.icon}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: BF, fontSize: 11, color: a.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.title}</div>
+              <div style={{ fontFamily: BF, fontSize: 10, color: "#777" }}>{a.msg}</div>
+            </div>
+            <span style={{ fontFamily: PF, fontSize: 5, color: "#444" }}>{expanded === i ? "▲" : "▼"}</span>
           </div>
+
+          {expanded === i && (
+            <div style={{ background: "#1a0a0a", border: "1px solid #ef444420", borderTop: "none", padding: "6px 8px" }}>
+              <div style={{ fontFamily: PF, fontSize: 5, color: "#ef444488", marginBottom: 5 }}>조치 내용</div>
+              {a.actions.map((action, j) => (
+                <div key={j} style={{ fontFamily: BF, fontSize: 11, color: action.startsWith("•") ? "#f59e0b" : "#666", marginBottom: 2, paddingLeft: action.startsWith("→") || action.startsWith("•") ? 4 : 0 }}>
+                  {action}
+                </div>
+              ))}
+              <button
+                onClick={() => { onSelect(a.projectId); setExpanded(null); }}
+                style={{
+                  all: "unset", cursor: "pointer", marginTop: 6,
+                  fontFamily: PF, fontSize: 5, color: "#000",
+                  background: a.color, padding: "3px 8px", display: "block",
+                }}
+              >
+                프로젝트 열기 →
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -225,9 +266,10 @@ interface LeftSidebarProps {
   projects: Project[];
   agentState: AgentState[];
   serverStats: ServerStatsMap;
+  onSelectProject: (id: number | string) => void;
 }
 
-export default function LeftSidebar({ projects, agentState, serverStats }: LeftSidebarProps) {
+export default function LeftSidebar({ projects, agentState, serverStats, onSelectProject }: LeftSidebarProps) {
   const { logs } = useLogs();
   const [sending, setSending] = useState(false);
 
@@ -247,7 +289,7 @@ export default function LeftSidebar({ projects, agentState, serverStats }: LeftS
       height: "calc(100vh - 80px)",
     }}>
       <ServerMonitor projects={projects} serverStats={serverStats || {}} />
-      <AlertsPanel projects={projects} />
+      <AlertsPanel projects={projects} onSelect={onSelectProject} />
       <ProjectHealth projects={projects} />
       <AgentStatus agentState={agentState} />
       <ActivityLog logs={logs} />

@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import type { Project, ToastItem } from "../types";
 
-const API_KEY = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
+const API_KEY = (import.meta.env.VITE_OPENAI_API_KEY as string | undefined)?.trim();
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -111,8 +111,16 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const pushAIMessage = useCallback((content: string) => {
+    setMessages(prev => [...prev, { role: "assistant", content }]);
+  }, []);
+
   const send = useCallback(async (text: string) => {
-    if (!API_KEY) { toast("OpenAI API 키가 없습니다", "error", "⚠️"); return; }
+    if (!API_KEY) {
+      setMessages(prev => [...prev, { role: "assistant", content: "⚠️ OpenAI API 키가 없습니다. .env 파일에 VITE_OPENAI_API_KEY를 설정하고 dev 서버를 재시작하세요." }]);
+      setLoading(false);
+      return;
+    }
     if (!text.trim()) return;
 
     const userMsg: ChatMessage = { role: "user", content: text };
@@ -219,5 +227,5 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
 
   const clear = useCallback(() => setMessages([]), []);
 
-  return { messages, loading, send, clear };
+  return { messages, loading, send, clear, pushAIMessage };
 }
