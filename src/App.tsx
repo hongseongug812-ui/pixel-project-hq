@@ -14,6 +14,7 @@ import { useFileDrop }    from "./hooks/useFileDrop";
 import { useMigration }   from "./hooks/useMigration";
 import { useUndoDelete }  from "./hooks/useUndoDelete";
 import { useAIChat }      from "./hooks/useAIChat";
+import { useAIScheduler } from "./hooks/useAIScheduler";
 import { useAlertWatcher } from "./hooks/useAlertWatcher";
 import { useAutoPilot }   from "./hooks/useAutoPilot";
 
@@ -28,6 +29,7 @@ import Toast              from "./components/Toast";
 import AIChat             from "./components/AIChat";
 import MyPage             from "./components/MyPage";
 import AgentChat          from "./components/AgentChat";
+import KanbanView         from "./components/KanbanView";
 
 import type { Project } from "./types";
 
@@ -55,11 +57,12 @@ export default function App() {
   const { handleDelete, handleUndo } = useUndoDelete(projects, deleteProject, addProject, setToasts, toast, setSelId);
   useAlertWatcher(projects);
   useAutoPilot(projects, serverStats, updateProject, addTask);
-  const { messages: aiMessages, loading: aiLoading, send: aiSend, clear: aiClear } = useAIChat(
+  const { messages: aiMessages, loading: aiLoading, send: aiSend, clear: aiClear, pushAIMessage } = useAIChat(
     projects,
     { updateProject, addProject, deleteProject, toggleTask, addTask },
     toast,
   );
+  useAIScheduler(projects, pushAIMessage, toast);
 
   // setSelId wrapper so useUndoDelete can call it
   function setSelId(id: number | string | null) { setSelIdState(id); }
@@ -252,7 +255,7 @@ export default function App() {
           <button onClick={() => setShowSidebar(s => !s)} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 8, padding: "3px 6px", color: showSidebar ? "#facc15" : "#444", background: "#111118", border: "1px solid #1e1e28", marginRight: 4 }}>☰</button>
         )}
         <div style={{ display: "flex", marginRight: 6, border: "1px solid #1e1e28" }}>
-          {([["god", "🏢 GOD"], ["portfolio", "📋 FOLIO"]] as [string, string][]).map(([v, l]) => (
+          {([["god", "🏢 GOD"], ["kanban", "📌 KANBAN"], ["portfolio", "📋 FOLIO"]] as [string, string][]).map(([v, l]) => (
             <button key={v} onClick={() => setViewMode(v)} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, padding: "4px 9px", color: viewMode === v ? "#000" : "#444", background: viewMode === v ? "#facc15" : "#111118" }}>{l}</button>
           ))}
         </div>
@@ -307,11 +310,14 @@ export default function App() {
                 agentState={agentState}
                 selectedId={selId}
                 isMeetingActive={isMeetingActive}
+                serverStats={serverStats}
                 onSelect={(id: number | string) => setSelIdState(selId === id ? null : id)}
                 onAgentClick={(id: string) => setAgentChatId(prev => prev === id ? null : id)}
               />
             )}
           </div>
+        ) : viewMode === "kanban" ? (
+          <KanbanView projects={projects} serverStats={serverStats} onSelect={id => { setSelIdState(id); setViewMode("god"); }} />
         ) : (
           <PortfolioView projects={projects} onSelect={id => { setSelIdState(id); setViewMode("god"); }} onExportJSON={exportJSON} onExportHTML={exportHTML} />
         )}
@@ -333,7 +339,7 @@ export default function App() {
       <Toast toasts={toasts} onUndo={handleUndo} />
       <AIChat messages={aiMessages} loading={aiLoading} onSend={aiSend} onClear={aiClear} onOpenChange={setAiChatOpen} />
       {agentChatId && (() => { const ag = agentState.find(a => a.id === agentChatId); return ag ? <AgentChat agent={ag} onClose={() => setAgentChatId(null)} /> : null; })()}
-      {showMyPage && <MyPage onClose={() => setShowMyPage(false)} />}
+      {showMyPage && <MyPage onClose={() => { setShowMyPage(false); window.dispatchEvent(new Event("phq-avatar-updated")); }} />}
     </div>
   );
 }

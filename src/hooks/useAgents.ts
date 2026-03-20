@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { AGENTS, ROOMS } from "../data/constants";
 import { useLogs } from "../contexts/LogsContext";
 import { daysSince } from "../utils/helpers";
+import { loadMyAvatar } from "../components/MyPage";
 import type { AgentState, Project, RoomKey } from "../types";
 
 const LOG_ACTIONS: Array<(p: { name: string }) => string> = [
@@ -74,10 +75,23 @@ function detectCrisisProject(projects: Project[]): boolean {
   );
 }
 
+function makeMyAgentState(): AgentState {
+  const av = loadMyAvatar();
+  return {
+    id: "me", name: av.name || "ME", role: "사용자", rank: "Junior",
+    aiModel: "GPT-4o mini", personality: "이 회사의 주인. 모든 프로젝트를 관리한다.",
+    hair: av.bodyColor, skin: av.bodyColor, shirt: av.bodyColor, pants: av.bodyColor,
+    body: av.bodyColor, emoji: av.emoji, task: "오피스 순찰 중",
+    room: "lounge" as RoomKey,
+    x: 20 + Math.random() * 80, y: 50 + Math.random() * 60,
+    frame: 0, dx: 0.4 + Math.random() * 0.4, currentTask: "오피스 순찰 중",
+  };
+}
+
 export function useAgents(projects: Project[], isAIChatOpen = false) {
   const { pushLog } = useLogs();
   const [agentState, setAgentState] = useState<AgentState[]>(() =>
-    AGENTS.map((a, i) => ({
+    [...AGENTS.map((a, i) => ({
       ...a,
       room: ROOMS[i % ROOMS.length].key,
       x: 20 + Math.random() * 100,
@@ -85,7 +99,7 @@ export function useAgents(projects: Project[], isAIChatOpen = false) {
       frame: 0,
       dx: 0.3 + Math.random() * 0.5,
       currentTask: a.task,
-    }))
+    })), makeMyAgentState()]
   );
   const [tick, setTick] = useState(0);
   const [isMeetingActive, setIsMeetingActive] = useState(false);
@@ -108,14 +122,26 @@ export function useAgents(projects: Project[], isAIChatOpen = false) {
       pushLog("AI 채팅 시작 — 전 에이전트 회의실 집결", "💬", "#f472b6");
     } else {
       setIsMeetingActive(false);
-      setAgentState(prev => prev.map((a, i) => ({
-        ...a, room: ROOMS[i % ROOMS.length].key,
-        x: 20 + Math.random() * 80,
-        y: 50 + Math.random() * 60,
-        currentTask: AGENTS[i]?.task ?? a.task,
-      })));
+      setAgentState(prev => prev.map((a, i) => {
+        if (a.id === "me") return { ...makeMyAgentState() };
+        return {
+          ...a, room: ROOMS[i % ROOMS.length].key,
+          x: 20 + Math.random() * 80,
+          y: 50 + Math.random() * 60,
+          currentTask: AGENTS[i]?.task ?? a.task,
+        };
+      }));
     }
   }, [isAIChatOpen]);
+
+  // 아바타 업데이트 이벤트 수신 → 내 캐릭터 즉시 반영
+  useEffect(() => {
+    function onAvatarUpdate() {
+      setAgentState(prev => prev.map(a => a.id === "me" ? { ...a, ...makeMyAgentState(), room: a.room, x: a.x, y: a.y } : a));
+    }
+    window.addEventListener("phq-avatar-updated", onAvatarUpdate);
+    return () => window.removeEventListener("phq-avatar-updated", onAvatarUpdate);
+  }, []);
 
   // 180ms마다 캐릭터 이동
   useEffect(() => {

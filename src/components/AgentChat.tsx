@@ -14,6 +14,8 @@ const GPT_MODEL: Record<string, string> = {
   "o1-mini": "o1-mini",
 };
 
+const MAX_HISTORY = 40; // 저장할 최대 메시지 수
+
 interface Message { role: "user" | "assistant"; content: string; }
 
 interface Props {
@@ -21,16 +23,39 @@ interface Props {
   onClose: () => void;
 }
 
+function historyKey(agentId: string) { return `phq_agent_chat_${agentId}`; }
+
+function loadHistory(agentId: string): Message[] {
+  try {
+    const raw = localStorage.getItem(historyKey(agentId));
+    if (raw) return JSON.parse(raw) as Message[];
+  } catch { /* ignore */ }
+  return [];
+}
+
+function saveHistory(agentId: string, msgs: Message[]) {
+  try {
+    localStorage.setItem(historyKey(agentId), JSON.stringify(msgs.slice(-MAX_HISTORY)));
+  } catch { /* ignore */ }
+}
+
 export default function AgentChat({ agent, onClose }: Props) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: `${agent.emoji} 안녕하세요. 저는 ${agent.name}입니다. [${agent.rank}]\n${agent.personality.split(". ")[0]}.`,
-    },
-  ]);
+  const greeting: Message = {
+    role: "assistant",
+    content: `${agent.emoji} 안녕하세요. 저는 ${agent.name}입니다. [${agent.rank}]\n${agent.personality.split(". ")[0]}.`,
+  };
+
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const history = loadHistory(agent.id);
+    return history.length > 0 ? history : [greeting];
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    saveHistory(agent.id, messages);
+  }, [agent.id, messages]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -115,6 +140,7 @@ export default function AgentChat({ agent, onClose }: Props) {
           </div>
           <div style={{ fontFamily: PF, fontSize: 4, color: "#4cc9f0", marginTop: 1 }}>🤖 {agent.aiModel}</div>
         </div>
+        <button onClick={() => { const reset = [greeting]; setMessages(reset); saveHistory(agent.id, reset); }} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#555", background: "#111118", border: "1px solid #1e1e28", padding: "3px 6px", borderRadius: 2, lineHeight: 1, marginRight: 4 }}>CLR</button>
         <button onClick={onClose} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 7, color: "#888", background: "#1a1a24", border: `1px solid ${rankColor}44`, padding: "3px 7px", borderRadius: 2, lineHeight: 1 }}>✕</button>
       </div>
 

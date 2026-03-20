@@ -3,6 +3,7 @@ import { AGENTS } from "../data/constants";
 import { PF, BF } from "../data/constants";
 
 export const MYPAGE_STORAGE_KEY = "phq_user_settings";
+export const AVATAR_STORAGE_KEY = "phq_my_avatar";
 
 export interface UserSettings {
   discordWebhook: string;
@@ -10,6 +11,12 @@ export interface UserSettings {
   telegramChatId: string;
   notifyNeglect: boolean;
   notifyUrgent: boolean;
+}
+
+export interface MyAvatar {
+  bodyColor: string;
+  emoji: string;
+  name: string;
 }
 
 export function loadUserSettings(): UserSettings {
@@ -20,9 +27,27 @@ export function loadUserSettings(): UserSettings {
   return defaultSettings();
 }
 
+export function loadMyAvatar(): MyAvatar {
+  try {
+    const raw = localStorage.getItem(AVATAR_STORAGE_KEY);
+    if (raw) return { ...defaultAvatar(), ...JSON.parse(raw) };
+  } catch { /* ignore */ }
+  return defaultAvatar();
+}
+
 function defaultSettings(): UserSettings {
   return { discordWebhook: "", telegramToken: "", telegramChatId: "", notifyNeglect: true, notifyUrgent: true };
 }
+
+function defaultAvatar(): MyAvatar {
+  return { bodyColor: "#a78bfa", emoji: "🧑", name: "ME" };
+}
+
+const AVATAR_COLORS = [
+  "#facc15","#f97316","#ef4444","#a78bfa","#4ade80","#60a5fa","#f472b6","#4cc9f0","#80ed99","#ffd166",
+];
+const AVATAR_EMOJIS = ["🧑","👤","🙂","😎","🤓","🧠","👑","⚡","🎯","🤝","🦾","🚀","🎮","🐱","🦊"];
+
 
 const RANK_COLOR: Record<string, string> = {
   CEO: "#facc15", CTO: "#f97316", Lead: "#a78bfa", Senior: "#4ade80", Junior: "#60a5fa", Assistant: "#f472b6",
@@ -32,13 +57,15 @@ interface Props { onClose: () => void; }
 
 export default function MyPage({ onClose }: Props) {
   const [settings, setSettings] = useState<UserSettings>(loadUserSettings);
+  const [avatar, setAvatar] = useState<MyAvatar>(loadMyAvatar);
   const [saved, setSaved] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle" | "sending" | "ok" | "fail">("idle");
 
-  useEffect(() => { setSaved(false); }, [settings]);
+  useEffect(() => { setSaved(false); }, [settings, avatar]);
 
   function save() {
     localStorage.setItem(MYPAGE_STORAGE_KEY, JSON.stringify(settings));
+    localStorage.setItem(AVATAR_STORAGE_KEY, JSON.stringify(avatar));
     setSaved(true);
   }
 
@@ -138,6 +165,68 @@ export default function MyPage({ onClose }: Props) {
                   <span style={{ fontFamily: BF, fontSize: 12, color: "#666" }}>{label}</span>
                 </label>
               ))}
+            </div>
+          </div>
+
+          {/* My Character */}
+          <div style={sectionStyle}>
+            <div style={{ fontFamily: PF, fontSize: 6, color: "#facc15", marginBottom: 12, paddingBottom: 4, borderBottom: "1px solid #1a1a28" }}>🧑 나의 캐릭터</div>
+
+            {/* Preview */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: avatar.bodyColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, boxShadow: `0 0 16px ${avatar.bodyColor}66`, flexShrink: 0 }}>
+                {avatar.emoji}
+              </div>
+              <div>
+                <div style={{ fontFamily: PF, fontSize: 7, color: avatar.bodyColor, marginBottom: 4 }}>{avatar.name || "ME"}</div>
+                <div style={{ fontFamily: BF, fontSize: 11, color: "#555" }}>오피스에 표시될 내 캐릭터</div>
+              </div>
+            </div>
+
+            {/* Name */}
+            <div style={{ marginBottom: 10 }}>
+              <label style={labelStyle}>닉네임</label>
+              <input
+                value={avatar.name}
+                onChange={e => setAvatar(a => ({ ...a, name: e.target.value.slice(0, 10) }))}
+                placeholder="ME"
+                style={{ ...inputStyle, width: 160 }}
+              />
+            </div>
+
+            {/* Color picker */}
+            <div style={{ marginBottom: 10 }}>
+              <label style={labelStyle}>바디 컬러</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {AVATAR_COLORS.map(c => (
+                  <div
+                    key={c}
+                    onClick={() => setAvatar(a => ({ ...a, bodyColor: c }))}
+                    style={{ width: 22, height: 22, borderRadius: "50%", background: c, cursor: "pointer", border: `2px solid ${avatar.bodyColor === c ? "#fff" : "transparent"}`, boxShadow: avatar.bodyColor === c ? `0 0 8px ${c}` : "none" }}
+                  />
+                ))}
+                {/* Custom color */}
+                <label style={{ width: 22, height: 22, borderRadius: "50%", background: "#1a1a28", border: "1px dashed #333", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#555" }}>
+                  +
+                  <input type="color" value={avatar.bodyColor} onChange={e => setAvatar(a => ({ ...a, bodyColor: e.target.value }))} style={{ opacity: 0, position: "absolute", width: 0, height: 0 }} />
+                </label>
+              </div>
+            </div>
+
+            {/* Emoji picker */}
+            <div>
+              <label style={labelStyle}>이모지</label>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {AVATAR_EMOJIS.map(em => (
+                  <button
+                    key={em}
+                    onClick={() => setAvatar(a => ({ ...a, emoji: em }))}
+                    style={{ all: "unset", cursor: "pointer", width: 28, height: 28, borderRadius: 4, background: avatar.emoji === em ? `${avatar.bodyColor}33` : "#111118", border: `1px solid ${avatar.emoji === em ? avatar.bodyColor : "#1e1e28"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}
+                  >
+                    {em}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

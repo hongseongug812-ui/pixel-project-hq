@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { STATUS_MAP, ROOM_MAX_DESKS, DESK_SLOTS } from "../data/constants";
 import { neglect } from "../utils/helpers";
+import { calcHealthScore, healthColor } from "../utils/healthScore";
 import { Monitor, Desk, Chair, Plant, Bookshelf, ServerRack, Whiteboard, WaterCooler, Sofa, MeetingTable, Clock, Printer, Coffee, Character, ServerNode } from "./Sprites";
-import type { Room, Project, AgentState } from "../types";
+import type { Room, Project, AgentState, ServerStatsMap } from "../types";
 
 interface RoomDecorationsProps { roomKey: string; w: number; h: number; }
 function RoomDecorations({ roomKey, w, h }: RoomDecorationsProps) {
@@ -24,6 +25,7 @@ interface OfficeRoomProps {
   agents: AgentState[];
   selectedId: number | string | null;
   isMeetingActive?: boolean;
+  serverStats: ServerStatsMap;
   onSelect: (id: number | string) => void;
   onAgentClick?: (agentId: string) => void;
 }
@@ -88,7 +90,7 @@ function AgentTooltip({ agent, x, y, roomW }: { agent: AgentState; x: number; y:
   );
 }
 
-export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMeetingActive, onSelect, onAgentClick }: OfficeRoomProps) {
+export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMeetingActive, serverStats, onSelect, onAgentClick }: OfficeRoomProps) {
   const rm = roomCfg;
   const [hoveredAgentId, setHoveredAgentId] = useState<string | null>(null);
   const hoveredAgent = agents.find(a => a.id === hoveredAgentId) ?? null;
@@ -202,9 +204,16 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMe
             );
           }
 
+          const hs = calcHealthScore(proj, serverStats);
+          const hc = healthColor(hs);
+          const barW = Math.round((hs / 100) * 36);
+
           return (
             <g key={proj.id} onClick={e => { e.stopPropagation(); onSelect(proj.id); }} style={{ cursor: "pointer" }}>
               {isSel && <rect x={slot.x - 6} y={slot.y - 24} width="48" height="50" fill={rm.color} opacity=".15" rx="3" />}
+              {/* Health bar (아래) */}
+              <rect x={slot.x} y={slot.y + 33} width={36} height={2} fill="#1a1a28" rx="1" />
+              <rect x={slot.x} y={slot.y + 33} width={barW} height={2} fill={hc} rx="1" opacity="0.8" />
               {nl > 0 && (
                 <rect x={slot.x} y={slot.y - 22} width="36" height="2.5" fill={nl === 2 ? "#ef4444" : "#f59e0b"} rx="1">
                   <animate attributeName="opacity" values={nl === 2 ? "1;0.3;1" : "0.7;0.4;0.7"} dur={nl === 2 ? "0.7s" : "2s"} repeatCount="indefinite" />

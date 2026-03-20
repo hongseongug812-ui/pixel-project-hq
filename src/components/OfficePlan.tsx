@@ -1,6 +1,6 @@
 import OfficeRoom from "./OfficeRoom";
 import { ROOMS } from "../data/constants";
-import type { Room, Project, AgentState } from "../types";
+import type { Room, Project, AgentState, ServerStatsMap } from "../types";
 
 const FLOOR_ROWS: string[][] = [
   ["ceo", "meeting", "server"],
@@ -131,12 +131,13 @@ interface Props {
   agentState: AgentState[];
   selectedId: number | string | null;
   isMeetingActive: boolean;
+  serverStats: ServerStatsMap;
   onSelect: (id: number | string) => void;
   onAgentClick: (id: string) => void;
 }
 
 export default function OfficePlan({
-  grouped, agentState, selectedId, isMeetingActive, onSelect, onAgentClick,
+  grouped, agentState, selectedId, isMeetingActive, serverStats, onSelect, onAgentClick,
 }: Props) {
   const roomMap = new Map<string, Room>(ROOMS.map(r => [r.key, r]));
 
@@ -178,6 +179,7 @@ export default function OfficePlan({
                     agents={agentState.filter(a => a.room === rm.key)}
                     selectedId={selectedId}
                     isMeetingActive={rm.key === "meeting" ? isMeetingActive : false}
+                    serverStats={serverStats}
                     onSelect={onSelect}
                     onAgentClick={onAgentClick}
                   />
