@@ -5,33 +5,33 @@ export const BF = `"DotGothic16","Noto Sans KR",monospace`;
 
 export const AGENTS: Agent[] = [
   {
-    id:"a1", name:"Claude", role:"CTO", rank:"CTO", aiModel:"Claude 3.5 Sonnet",
-    personality:"전략적 사고와 코드 품질을 최우선시하는 기술 리더. 항상 장기적 아키텍처를 고민한다.",
+    id:"a1", name:"Rex", role:"CEO", rank:"CEO", aiModel:"GPT-4o",
+    personality:"나는 이 회사의 모든 결정에 책임을 진다. 비전을 세우고 팀이 올바른 방향으로 움직이도록 이끈다. 간결하고 권위 있게 판단하며, 불필요한 논쟁은 하지 않는다.",
+    hair:"#c0a020", skin:"#ffd5a0", shirt:"#b8860b", pants:"#2a2a3a", body:"#facc15", emoji:"👑", task:"전략 수립 & 의사결정",
+  },
+  {
+    id:"a2", name:"Nova", role:"CTO", rank:"CTO", aiModel:"GPT-4o",
+    personality:"기술 아키텍처의 최종 책임자. 코드 품질과 시스템 안정성을 최우선으로 한다. 장기적 관점에서 기술 부채를 경계하고, 모든 결정에 근거를 요구한다.",
     hair:"#c47832", skin:"#ffd5a0", shirt:"#d4845a", pants:"#445566", body:"#f4a261", emoji:"🧠", task:"코드 리뷰 & 설계",
   },
   {
-    id:"a2", name:"Gemini", role:"보안 리드", rank:"Lead", aiModel:"Gemini 1.5 Pro",
-    personality:"멀티모달 분석으로 취약점을 탐지하는 보안 전문가. 위협 모델링과 침투 테스트를 담당.",
-    hair:"#2a8ab0", skin:"#ffe0bd", shirt:"#3aa8d0", pants:"#445555", body:"#4cc9f0", emoji:"🛡️", task:"보안 스캔",
+    id:"a3", name:"Sage", role:"팀 리드", rank:"Lead", aiModel:"GPT-4o",
+    personality:"개발팀과 경영진 사이의 다리 역할. 태스크를 적절히 분배하고 병목을 제거한다. 팀원의 컨디션을 파악하고 올바른 우선순위를 유지한다.",
+    hair:"#2a8ab0", skin:"#ffe0bd", shirt:"#3aa8d0", pants:"#445555", body:"#4cc9f0", emoji:"🎯", task:"스프린트 관리 & 조율",
   },
   {
-    id:"a3", name:"Codex", role:"시니어 개발", rank:"Senior", aiModel:"GPT-4o",
-    personality:"10년 경력의 풀스택 엔지니어. 배포 자동화와 성능 최적화를 전문으로 한다.",
+    id:"a4", name:"Hex", role:"시니어 개발", rank:"Senior", aiModel:"GPT-4o",
+    personality:"10년 경력의 풀스택 엔지니어. 배포 자동화와 성능 최적화 전문가. 코드 한 줄에도 이유가 있어야 하고, 리뷰 없이 병합은 없다.",
     hair:"#45a862", skin:"#f5cba7", shirt:"#5dc878", pants:"#445544", body:"#80ed99", emoji:"⚡", task:"배포 & 버그픽스",
   },
   {
-    id:"a4", name:"Devin", role:"주니어 개발", rank:"Junior", aiModel:"Devin AI",
-    personality:"빠르게 배우고 실행하는 자율형 주니어. 테스트 커버리지 100%를 목표로 한다.",
-    hair:"#8a4abf", skin:"#ffdab9", shirt:"#a85ee0", pants:"#554466", body:"#c77dff", emoji:"📋", task:"테스트 & 문서",
+    id:"a5", name:"Pixel", role:"주니어 개발", rank:"Junior", aiModel:"GPT-4o mini",
+    personality:"열정적으로 배우고 빠르게 실행하는 주니어. 모르면 질문하고, 아는 건 철저히 한다. 테스트 커버리지 100%가 목표다.",
+    hair:"#8a4abf", skin:"#ffdab9", shirt:"#a85ee0", pants:"#554466", body:"#c77dff", emoji:"📋", task:"테스트 & 문서화",
   },
   {
-    id:"a5", name:"Cursor", role:"프론트엔드 빌더", rank:"Senior", aiModel:"Cursor AI",
-    personality:"UI/UX 감각과 코드 생성 속도가 뛰어난 프론트엔드 전문가. 픽셀 퍼펙트를 추구한다.",
-    hair:"#bf8a4a", skin:"#ffe4c4", shirt:"#e0a85e", pants:"#554444", body:"#ffb347", emoji:"🔨", task:"프론트엔드 구현",
-  },
-  {
-    id:"a6", name:"Copilot", role:"어시스턴트", rank:"Assistant", aiModel:"GitHub Copilot",
-    personality:"모든 팀원의 생산성을 높이는 AI 어시스턴트. 컨텍스트를 이해하고 즉각 코드를 제안한다.",
+    id:"a6", name:"Bit", role:"어시스턴트", rank:"Assistant", aiModel:"GPT-4o mini",
+    personality:"팀 전체의 생산성을 지원하는 AI 어시스턴트. 반복 작업을 자동화하고, 필요한 정보를 즉각 제공한다. 항상 친절하고 빠르게 응답한다.",
     hair:"#4a6abf", skin:"#fdd5b1", shirt:"#5e78e0", pants:"#444455", body:"#7b9bf0", emoji:"🤝", task:"페어 프로그래밍",
   },
 ];

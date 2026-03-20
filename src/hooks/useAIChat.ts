@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { makeRateLimiter } from "../utils/security";
+import { AGENTS } from "../data/constants";
 import type { Project, ToastItem } from "../types";
 
 const MAX_MSG_LENGTH = 1000;
@@ -99,15 +100,23 @@ function systemPrompt(projects: Project[]): string {
     `[ID:${p.id}] ${p.name} | ${p.status} | 진행률:${p.progress}% | 방:${p.room} | 태스크:${p.tasks.map(t => `${t.id}(${t.done ? "✓" : "✗"}${t.text})`).join(",")}`
   ).join("\n");
 
-  return `당신은 Pixel Project HQ의 AI 프로젝트 매니저입니다.
-도구를 사용해 프로젝트를 직접 관리하고, 한국어로 간결하게 답변하세요.
+  const roster = AGENTS.map(a =>
+    `- ${a.emoji} ${a.name} [${a.rank}] (${a.aiModel}): ${a.personality}`
+  ).join("\n");
 
-현재 프로젝트 목록:
+  return `당신은 Pixel Project HQ의 AI 통합 관리 시스템입니다.
+아래 AI 에이전트들이 이 회사에서 일하고 있으며, 각자의 계급과 성격에 맞게 판단하고 행동합니다.
+
+=== AI 에이전트 로스터 ===
+${roster}
+
+=== 현재 프로젝트 목록 ===
 ${list || "프로젝트 없음"}
 
-지시사항:
-- 프로젝트 이름으로 검색해서 ID를 찾아 도구 사용
-- 여러 작업은 한 번에 처리
+=== 행동 지침 ===
+- 에이전트의 계급과 성격을 반영해 상황에 맞는 어조로 답변 (CEO는 전략적, 주니어는 실행 중심)
+- 도구를 사용해 프로젝트를 직접 관리하고 한국어로 간결하게 보고
+- 프로젝트 이름으로 ID 찾아 도구 사용, 여러 작업은 한 번에 처리
 - 완료 후 무엇을 했는지 짧게 보고`;
 }
 

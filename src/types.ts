@@ -35,7 +35,7 @@ export interface Project {
 // ── Agent types ───────────────────────────────────────────────────────
 
 export type AgentRank = "CEO" | "CTO" | "Lead" | "Senior" | "Junior" | "Assistant";
-export type AIModel = "Claude 3.5 Sonnet" | "Gemini 1.5 Pro" | "GPT-4o" | "Devin AI" | "Cursor AI" | "GitHub Copilot";
+export type AIModel = "GPT-4o" | "GPT-4o mini" | "GPT-4 Turbo" | "o1" | "o1-mini";
 
 export interface Agent {
   id: string;
