@@ -19,6 +19,8 @@ export default function AddModal({ onAdd, onClose }: AddModalProps) {
   const [featured,    setFeatured]    = useState(false);
   const [startDate,   setStartDate]   = useState(new Date().toISOString().slice(0, 10));
   const [stackInput,  setStackInput]  = useState("");
+  const [budget,      setBudget]      = useState("");
+  const [targetDate,  setTargetDate]  = useState("");
   const [tasks,       setTasks]       = useState<{ text: string; done: boolean }[]>([{ text: "", done: false }]);
 
   const inp: React.CSSProperties = { width: "100%", fontFamily: BF, fontSize: 12, color: "#ccc", background: "#0c0c10", border: "1px solid #222", padding: "5px 7px", outline: "none", boxSizing: "border-box" };
@@ -42,6 +44,9 @@ export default function AddModal({ onAdd, onClose }: AddModalProps) {
       thumbnail: thumbnail.trim() || null,
       description: description.trim() || null,
       featured, startDate, endDate: null, tasks: finalTasks, stack,
+      assignedAgentId: null,
+      budget: budget ? parseInt(budget, 10) : null,
+      targetDate: targetDate.trim() || null,
     });
     onClose();
   };
@@ -122,9 +127,20 @@ export default function AddModal({ onAdd, onClose }: AddModalProps) {
           </div>
         </div>
 
+        <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ flex: 1 }}>
+            <div style={lbl}>START DATE</div>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ ...inp, colorScheme: "dark" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={lbl}>DEADLINE (목표)</div>
+            <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} style={{ ...inp, colorScheme: "dark" }} />
+          </div>
+        </div>
+
         <div>
-          <div style={lbl}>START DATE</div>
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ ...inp, colorScheme: "dark" }} />
+          <div style={lbl}>BUDGET (만원)</div>
+          <input type="number" min={0} value={budget} onChange={e => setBudget(e.target.value)} placeholder="예: 500 (500만원)" style={inp} />
         </div>
 
         <div>

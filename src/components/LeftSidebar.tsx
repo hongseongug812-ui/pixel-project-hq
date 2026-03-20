@@ -210,6 +210,17 @@ function AlertsPanel({ projects, onSelect }: AlertsPanelProps) {
       actions: pending.map(t => `• ${t.text}`),
     });
   });
+  projects.filter(p => p.targetDate && p.status !== "complete").forEach(p => {
+    const daysLeft = Math.ceil((new Date(p.targetDate!).getTime() - Date.now()) / 864e5);
+    if (daysLeft < 0) alerts.push({
+      icon: "🔴", title: p.name, msg: `마감 ${Math.abs(daysLeft)}일 초과`, color: "#ef4444", projectId: p.id,
+      actions: [`목표일: ${p.targetDate}`, "→ 마감일 재조정 또는 상태 업데이트 필요"],
+    });
+    else if (daysLeft < 7) alerts.push({
+      icon: "⏰", title: p.name, msg: `마감 D-${daysLeft}`, color: "#f59e0b", projectId: p.id,
+      actions: [`목표일: ${p.targetDate}`, `→ 진행률: ${p.progress}%`, `→ 미완료 태스크: ${p.tasks.filter(t => !t.done).length}건`],
+    });
+  });
 
   if (alerts.length === 0) return (
     <div style={{ background: "#080e08", border: "1px solid #4ade8018", borderRadius: 3, padding: "6px 8px", display: "flex", alignItems: "center", gap: 5 }}>
@@ -295,10 +306,12 @@ const LOG_TYPE_STYLE: Record<string, { bg: string; border: string; dot: string }
   alert:   { bg: "#120808", border: "#ef444430", dot: "#ef4444" },
   review:  { bg: "#08080e", border: "#60a5fa30", dot: "#60a5fa" },
   security:{ bg: "#0a080e", border: "#a78bfa30", dot: "#a78bfa" },
+  meeting: { bg: "#0e0610", border: "#f472b630", dot: "#f472b6" },
   default: { bg: "#0a0a0e", border: "#1a1a2a",   dot: "#555"    },
 };
 
 function getLogType(msg: string): string {
+  if (msg.includes("회의")) return "meeting";
   if (msg.includes("배포") || msg.includes("서버") || msg.includes("등록")) return "deploy";
   if (msg.includes("방치") || msg.includes("긴급") || msg.includes("⚠")) return "alert";
   if (msg.includes("리뷰") || msg.includes("review")) return "review";
@@ -309,7 +322,7 @@ function getLogType(msg: string): string {
 interface ActivityLogProps { logs: import("../types").LogEntry[]; }
 function ActivityLog({ logs }: ActivityLogProps) {
   const [filter, setFilter] = useState("all");
-  const types = ["all", "deploy", "alert", "review", "security"];
+  const types = ["all", "deploy", "alert", "review", "security", "meeting"];
   const filtered = filter === "all" ? logs : logs.filter(l => getLogType(l.msg) === filter);
 
   return (

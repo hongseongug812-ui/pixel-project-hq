@@ -34,7 +34,7 @@ export default function App() {
   const { toasts, setToasts, toast } = useToast();
 
   const { projects, setProjects, loadingData, saving, loadProjects, syncLocal, addProject, deleteProject, updateProject, toggleTask, addTask } = useProjects(user);
-  const { agentState, tick }    = useAgents(projects);
+  const { agentState, tick, isMeetingActive } = useAgents(projects);
   const { serverStats, pingHistory, pinging, recheckServer } = useServerStats(projects, tick);
   const { exportJSON, exportHTML } = useExport(projects, toast);
   const { dropActive, setDropActive, fileAnalysis, setFileAnalysis, handleDrop } = useFileDrop(toast);
@@ -298,6 +298,7 @@ export default function App() {
                 {ROOMS.map(rm => (
                   <OfficeRoom key={rm.key} roomCfg={rm} projects={grouped[rm.key] || []}
                     agents={agentState.filter(a => a.room === rm.key)} selectedId={selId}
+                    isMeetingActive={rm.key === "meeting" ? isMeetingActive : false}
                     onSelect={id => setSelIdState(selId === id ? null : id)} />
                 ))}
               </div>

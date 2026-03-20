@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { PF, BF, STATUS_MAP, ROOMS } from "../data/constants";
+import { PF, BF, STATUS_MAP, ROOMS, AGENTS } from "../data/constants";
 import { neglect, daysSince } from "../utils/helpers";
 import { safeOpenUrl } from "../utils/security";
 import { suggestTasks, generateDescription, isOpenAIConfigured } from "../lib/openai";
@@ -158,6 +158,73 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
           ))}
         </div>
       </div>
+
+      {/* AI 에이전트 배정 */}
+      <div>
+        <div style={{ fontFamily: PF, fontSize: 4, color: "#555", marginBottom: 3 }}>AI AGENT</div>
+        <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+          {AGENTS.map(a => {
+            const isAssigned = p.assignedAgentId === a.id;
+            return (
+              <button key={a.id} onClick={() => onUpdate(p.id, { assignedAgentId: isAssigned ? null : a.id })}
+                title={`${a.name} — ${a.role}`}
+                style={{
+                  all: "unset", cursor: "pointer", fontFamily: BF, fontSize: 11, padding: "2px 5px",
+                  background: isAssigned ? "#1a1020" : "#111118",
+                  border: `1px solid ${isAssigned ? a.body : "#1e1e28"}`,
+                  color: isAssigned ? a.body : "#444",
+                }}>
+                {a.emoji} {a.name}
+              </button>
+            );
+          })}
+        </div>
+        {p.assignedAgentId && (() => {
+          const a = AGENTS.find(ag => ag.id === p.assignedAgentId);
+          return a ? (
+            <div style={{ fontFamily: BF, fontSize: 10, color: "#555", marginTop: 3 }}>
+              {a.emoji} {a.name} ({a.role}) 배정됨
+            </div>
+          ) : null;
+        })()}
+      </div>
+
+      {/* KPI: 예산 + 마감 */}
+      {(p.budget !== null || p.targetDate) && (
+        <div style={{ background: "#0e0e16", border: "1px solid #1e1e2a", borderRadius: 2, padding: "6px 8px", display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ fontFamily: PF, fontSize: 4, color: "#555", marginBottom: 1 }}>KPI</div>
+          {p.budget !== null && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontFamily: PF, fontSize: 4, color: "#888" }}>💰 예산</span>
+              <span style={{ fontFamily: BF, fontSize: 11, color: "#facc15" }}>{p.budget.toLocaleString()}만원</span>
+            </div>
+          )}
+          {p.targetDate && (() => {
+            const now = new Date();
+            const target = new Date(p.targetDate);
+            const daysLeft = Math.ceil((target.getTime() - now.getTime()) / 864e5);
+            const start = p.startDate ? new Date(p.startDate) : now;
+            const total = Math.ceil((target.getTime() - start.getTime()) / 864e5);
+            const elapsed = Math.max(0, Math.ceil((now.getTime() - start.getTime()) / 864e5));
+            const ratio = total > 0 ? Math.min(1, elapsed / total) : 1;
+            const color = daysLeft < 0 ? "#ef4444" : daysLeft < 7 ? "#f59e0b" : "#4ade80";
+            return (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                  <span style={{ fontFamily: PF, fontSize: 4, color: "#888" }}>⏰ 마감</span>
+                  <span style={{ fontFamily: PF, fontSize: 4, color }}>
+                    {daysLeft < 0 ? `${Math.abs(daysLeft)}일 초과` : daysLeft === 0 ? "오늘!" : `D-${daysLeft}`}
+                  </span>
+                </div>
+                <div style={{ height: 3, background: "#1a1a22" }}>
+                  <div style={{ width: `${Math.round(ratio * 100)}%`, height: "100%", background: color, transition: "width .3s", boxShadow: `0 0 4px ${color}88` }} />
+                </div>
+                <div style={{ fontFamily: PF, fontSize: 3, color: "#333", marginTop: 1 }}>{p.targetDate}</div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {p.thumbnail ? (
         <div style={{ position: "relative", borderRadius: 3, overflow: "hidden", border: "1px solid #1a1a28" }}>

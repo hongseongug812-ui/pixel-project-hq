@@ -57,6 +57,7 @@ export default function FileAnalysisModal({ analysis, filename, rawContent, onCo
       githubUrl: null, thumbnail: null, description: null,
       featured: false, startDate: null, endDate: null,
       tasks: finalTasks, stack: analysis.stack || [],
+      assignedAgentId: null, budget: null, targetDate: null,
     });
     onClose();
   };

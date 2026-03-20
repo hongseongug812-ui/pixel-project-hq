@@ -7,7 +7,7 @@ const mockProject: Project = {
   id: 1, name: "삭제 테스트", status: "active", priority: "high",
   progress: 50, lastActivity: "2024-01-01", room: "lab",
   serverUrl: null, githubUrl: null, thumbnail: null,
-  description: null, featured: false, startDate: null, endDate: null,
+  description: null, featured: false, startDate: null, endDate: null, assignedAgentId: null, budget: null, targetDate: null,
   stack: [], tasks: [],
 };
 

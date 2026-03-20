@@ -204,7 +204,7 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
               progress: 0, lastActivity: new Date().toISOString().slice(0, 10),
               serverUrl: null, githubUrl: null, thumbnail: null,
               featured: false, startDate: new Date().toISOString().slice(0, 10), endDate: null,
-              tasks: [],
+              tasks: [], assignedAgentId: null, budget: null, targetDate: null,
             });
           } else {
             result = "알 수 없는 도구";

@@ -27,6 +27,9 @@ export interface Project {
   endDate: string | null;
   stack: string[];
   tasks: Task[];
+  assignedAgentId: string | null;
+  budget: number | null;
+  targetDate: string | null;
 }
 
 // ── Agent types ───────────────────────────────────────────────────────

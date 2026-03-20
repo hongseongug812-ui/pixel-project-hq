@@ -3,21 +3,24 @@ import type { Project, Task, ProjectStatus, ProjectPriority, RoomKey } from "../
 
 // ── 변환 유틸 ────────────────────────────────────────────────────────
 export const FIELD_MAP: Record<string, string> = {
-  lastActivity: "last_activity",
-  serverUrl:    "server_url",
-  githubUrl:    "github_url",
-  thumbnail:    "thumbnail",
-  description:  "description",
-  featured:     "featured",
-  startDate:    "start_date",
-  endDate:      "end_date",
-  stack:        "stack",
-  tasks:        "tasks",
-  name:         "name",
-  status:       "status",
-  progress:     "progress",
-  priority:     "priority",
-  room:         "room",
+  lastActivity:    "last_activity",
+  serverUrl:       "server_url",
+  githubUrl:       "github_url",
+  thumbnail:       "thumbnail",
+  description:     "description",
+  featured:        "featured",
+  startDate:       "start_date",
+  endDate:         "end_date",
+  stack:           "stack",
+  tasks:           "tasks",
+  name:            "name",
+  status:          "status",
+  progress:        "progress",
+  priority:        "priority",
+  room:            "room",
+  assignedAgentId: "assigned_agent_id",
+  budget:          "budget",
+  targetDate:      "target_date",
 };
 
 export function rowToProject(row: Record<string, unknown>): Project {
@@ -36,8 +39,11 @@ export function rowToProject(row: Record<string, unknown>): Project {
     featured:     (row.featured     ?? false) as boolean,
     startDate:    (row.start_date   ?? null) as string | null,
     endDate:      (row.end_date     ?? null) as string | null,
-    stack:        (row.stack        ?? []) as string[],
-    tasks:        (row.tasks        ?? []) as Task[],
+    stack:           (row.stack            ?? []) as string[],
+    tasks:           (row.tasks            ?? []) as Task[],
+    assignedAgentId: (row.assigned_agent_id ?? null) as string | null,
+    budget:          (row.budget            ?? null) as number | null,
+    targetDate:      (row.target_date       ?? null) as string | null,
   };
 }
 
@@ -56,8 +62,11 @@ function projectToRow(p: Partial<Project>, userId?: string): Record<string, unkn
     featured:      p.featured      ?? false,
     start_date:    p.startDate     ?? null,
     end_date:      p.endDate       ?? null,
-    stack:         p.stack         ?? [],
-    tasks:         p.tasks         ?? [],
+    stack:             p.stack             ?? [],
+    tasks:             p.tasks             ?? [],
+    assigned_agent_id: p.assignedAgentId   ?? null,
+    budget:            p.budget            ?? null,
+    target_date:       p.targetDate        ?? null,
   };
   if (userId) row.user_id = userId;
   return row;

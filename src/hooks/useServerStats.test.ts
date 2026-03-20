@@ -7,7 +7,7 @@ const makeProject = (serverUrl: string | null, id = 1): Project => ({
   id, name: "Test", status: "active", priority: "high",
   progress: 0, lastActivity: "2024-01-01", room: "lab",
   serverUrl, githubUrl: null, thumbnail: null,
-  description: null, featured: false, startDate: null, endDate: null,
+  description: null, featured: false, startDate: null, endDate: null, assignedAgentId: null, budget: null, targetDate: null,
   stack: [], tasks: [],
 });
 

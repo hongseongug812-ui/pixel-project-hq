@@ -23,6 +23,7 @@ interface OfficeRoomProps {
   projects: Project[];
   agents: AgentState[];
   selectedId: number | string | null;
+  isMeetingActive?: boolean;
   onSelect: (id: number | string) => void;
 }
 
@@ -62,7 +63,7 @@ function AgentTooltip({ agent, x, y, roomW }: { agent: AgentState; x: number; y:
   );
 }
 
-export default function OfficeRoom({ roomCfg, projects, agents, selectedId, onSelect }: OfficeRoomProps) {
+export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMeetingActive, onSelect }: OfficeRoomProps) {
   const rm = roomCfg;
   const [hoveredAgentId, setHoveredAgentId] = useState<string | null>(null);
   const hoveredAgent = agents.find(a => a.id === hoveredAgentId) ?? null;
@@ -110,6 +111,14 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, onSe
         <rect x={rm.w / 2 - 12} y="11" width="24" height="2" fill="#5a4018" />
 
         <RoomDecorations roomKey={rm.key} w={rm.w} h={rm.h} />
+
+        {isMeetingActive && rm.key === "meeting" && (
+          <g>
+            <rect x={rm.w / 2 - 42} y={rm.h / 2 - 10} width={84} height={18} rx={2} fill="#1a0a14" opacity={0.92} />
+            <rect x={rm.w / 2 - 42} y={rm.h / 2 - 10} width={84} height={18} rx={2} fill="none" stroke="#f472b6" strokeWidth={1} opacity={0.7} />
+            <text x={rm.w / 2} y={rm.h / 2 + 4} fill="#f472b6" fontSize="6" fontFamily={`"Press Start 2P",monospace`} textAnchor="middle">📋 긴급 회의중</text>
+          </g>
+        )}
 
         {slots.slice(Math.min(projects.length, max), max).map((slot, i) => (
           <g key={`ghost-${i}`} opacity="0.55">

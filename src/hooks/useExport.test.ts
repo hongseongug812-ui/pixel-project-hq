@@ -8,7 +8,7 @@ const mockProject: Project = {
   progress: 50, lastActivity: "2024-01-01", room: "lab",
   serverUrl: "https://test.vercel.app", githubUrl: "https://github.com/test/repo",
   thumbnail: null, description: "테스트 프로젝트", featured: true,
-  startDate: "2024-01-01", endDate: null,
+  startDate: "2024-01-01", endDate: null, assignedAgentId: null, budget: null, targetDate: null,
   stack: ["React", "TypeScript"],
   tasks: [{ id: "t1", text: "배포", done: true }],
 };
