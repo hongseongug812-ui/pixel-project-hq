@@ -162,7 +162,13 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
       const toolResults: { role: string; tool_call_id: string; content: string }[] = [];
       if (toolCalls?.length) {
         for (const call of toolCalls) {
-          const args = JSON.parse(call.function.arguments) as Record<string, unknown>;
+          let args: Record<string, unknown>;
+          try {
+            args = JSON.parse(call.function.arguments) as Record<string, unknown>;
+          } catch {
+            toolResults.push({ role: "tool", tool_call_id: call.id, content: "인수 파싱 오류" });
+            continue;
+          }
           let result = "완료";
 
           if (call.function.name === "update_project") {

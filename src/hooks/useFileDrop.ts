@@ -20,6 +20,10 @@ export function useFileDrop(toast: ToastFn) {
     setDropActive(false);
     const f = e.dataTransfer.files[0];
     if (!f) return;
+    if (f.size > 5 * 1024 * 1024) {
+      toast("파일이 너무 큽니다 (최대 5MB)", "warn", "⚠️");
+      return;
+    }
     const r = new FileReader();
     r.onload = ev => {
       const content = ev.target?.result as string;

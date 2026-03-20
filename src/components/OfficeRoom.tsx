@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { STATUS_MAP, ROOM_MAX_DESKS, DESK_SLOTS } from "../data/constants";
 import { neglect } from "../utils/helpers";
 import { Monitor, Desk, Chair, Plant, Bookshelf, ServerRack, Whiteboard, WaterCooler, Sofa, MeetingTable, Clock, Printer, Coffee, Character, ServerNode } from "./Sprites";
@@ -26,8 +26,46 @@ interface OfficeRoomProps {
   onSelect: (id: number | string) => void;
 }
 
+function AgentTooltip({ agent, x, y, roomW }: { agent: AgentState; x: number; y: number; roomW: number }) {
+  const PF = `"Press Start 2P",monospace`;
+  const task = agent.currentTask.length > 20 ? agent.currentTask.slice(0, 20) + "…" : agent.currentTask;
+  const nameW = Math.max(agent.name.length, task.length) * 5.5 + 20;
+  const boxW = Math.max(nameW, 80);
+  const boxH = 38;
+  // 화면 밖으로 나가지 않도록 위치 조정
+  const tx = Math.min(Math.max(x - boxW / 2 + 7, 4), roomW - boxW - 4);
+  const ty = y - boxH - 6;
+
+  return (
+    <g style={{ pointerEvents: "none" }}>
+      {/* 말풍선 꼬리 */}
+      <polygon
+        points={`${x + 3},${ty + boxH} ${x + 7},${ty + boxH} ${x + 7},${ty + boxH + 5}`}
+        fill="#1a1a2e"
+      />
+      {/* 배경 */}
+      <rect x={tx} y={ty} width={boxW} height={boxH} rx="2" fill="#1a1a2e" opacity="0.95" />
+      <rect x={tx} y={ty} width={boxW} height={boxH} rx="2" fill="none" stroke={agent.body} strokeWidth="1" opacity="0.7" />
+      {/* 이름 + 이모지 */}
+      <text x={tx + 7} y={ty + 12} fill={agent.body} fontSize="6" fontFamily={PF} fontWeight="bold">
+        {agent.emoji} {agent.name}
+      </text>
+      {/* 역할 */}
+      <text x={tx + 7} y={ty + 22} fill="#888" fontSize="5" fontFamily={PF}>
+        {agent.role}
+      </text>
+      {/* 현재 작업 */}
+      <text x={tx + 7} y={ty + 33} fill="#ccc" fontSize="5" fontFamily={PF}>
+        {task}
+      </text>
+    </g>
+  );
+}
+
 export default function OfficeRoom({ roomCfg, projects, agents, selectedId, onSelect }: OfficeRoomProps) {
   const rm = roomCfg;
+  const [hoveredAgentId, setHoveredAgentId] = useState<string | null>(null);
+  const hoveredAgent = agents.find(a => a.id === hoveredAgentId) ?? null;
   const T = 10;
   const cols = Math.floor(rm.w / T), rows = Math.floor(rm.h / T);
   const max = ROOM_MAX_DESKS[rm.key] || 6;
@@ -142,8 +180,27 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, onSe
         )}
 
         {agents.map(a => (
-          <Character key={a.id} agent={a} x={a.x} y={a.y} frame={a.frame} dir={a.dx > 0 ? 1 : -1} />
+          <g
+            key={a.id}
+            onMouseEnter={() => setHoveredAgentId(a.id)}
+            onMouseLeave={() => setHoveredAgentId(null)}
+            style={{ cursor: "pointer" }}
+          >
+            <Character agent={a} x={a.x} y={a.y} frame={a.frame} dir={a.dx > 0 ? 1 : -1} />
+            {/* 호버 감지 영역 (캐릭터보다 살짝 크게) */}
+            <rect x={a.x - 2} y={a.y - 2} width="18" height="26" fill="transparent" />
+          </g>
         ))}
+
+        {/* 툴팁은 SVG 맨 마지막에 렌더링 (항상 위에 표시) */}
+        {hoveredAgent && hoveredAgent.room === rm.key && (
+          <AgentTooltip
+            agent={hoveredAgent}
+            x={hoveredAgent.x}
+            y={hoveredAgent.y}
+            roomW={rm.w}
+          />
+        )}
       </svg>
 
       <div style={{ background: rm.wallColor, padding: "4px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", borderRadius: "0 0 4px 4px" }}>

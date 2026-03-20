@@ -20,30 +20,28 @@ export const FIELD_MAP: Record<string, string> = {
   room:         "room",
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function rowToProject(row: Record<string, any>): Project {
+export function rowToProject(row: Record<string, unknown>): Project {
   return {
-    id:           row.id,
-    name:         row.name,
+    id:           row.id as number | string,
+    name:         row.name as string,
     status:       row.status        as ProjectStatus,
-    progress:     row.progress,
+    progress:     row.progress      as number,
     priority:     row.priority      as ProjectPriority,
-    lastActivity: row.last_activity,
+    lastActivity: row.last_activity as string,
     room:         row.room          as RoomKey,
-    serverUrl:    row.server_url    ?? null,
-    githubUrl:    row.github_url    ?? null,
-    thumbnail:    row.thumbnail     ?? null,
-    description:  row.description   ?? null,
-    featured:     row.featured      ?? false,
-    startDate:    row.start_date    ?? null,
-    endDate:      row.end_date      ?? null,
-    stack:        row.stack         ?? [],
+    serverUrl:    (row.server_url   ?? null) as string | null,
+    githubUrl:    (row.github_url   ?? null) as string | null,
+    thumbnail:    (row.thumbnail    ?? null) as string | null,
+    description:  (row.description  ?? null) as string | null,
+    featured:     (row.featured     ?? false) as boolean,
+    startDate:    (row.start_date   ?? null) as string | null,
+    endDate:      (row.end_date     ?? null) as string | null,
+    stack:        (row.stack        ?? []) as string[],
     tasks:        (row.tasks        ?? []) as Task[],
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function projectToRow(p: Partial<Project>, userId?: string): Record<string, any> {
+function projectToRow(p: Partial<Project>, userId?: string): Record<string, unknown> {
   const row: Record<string, unknown> = {
     name:          p.name,
     status:        p.status        ?? "active",
@@ -83,8 +81,7 @@ export async function fetchProjects(userId: string): Promise<Project[]> {
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data as any[]).map(rowToProject);
+  return (data as Record<string, unknown>[]).map(rowToProject);
 }
 
 export async function createProject(project: Partial<Project>, userId: string): Promise<Project> {

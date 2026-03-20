@@ -2,12 +2,14 @@ import { useState, useCallback } from "react";
 import { isConfigured } from "../lib/supabase";
 import * as db from "../lib/db";
 import { useLogs } from "../contexts/LogsContext";
-import type { Project } from "../types";
+import type { Project, ToastItem } from "../types";
 
 const KEY = "phq6";
 const saveLocal = (p: Project[]): void => localStorage.setItem(KEY, JSON.stringify(p));
 
-export function useProjects(user: { id: string } | null) {
+type ToastFn = (msg: string, type?: ToastItem["type"], emoji?: string) => void;
+
+export function useProjects(user: { id: string } | null, toast?: ToastFn) {
   const { pushLog } = useLogs();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -21,6 +23,7 @@ export function useProjects(user: { id: string } | null) {
         setProjects(data);
       } catch (e) {
         pushLog(`DB 로드 오류: ${(e as Error).message}`, "❌", "#ef4444");
+        toast?.("클라우드 연결 실패 — 로컬 데이터로 복구했습니다", "warn", "☁️");
         try { setProjects(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch { setProjects([]); }
       }
     } else {
@@ -42,6 +45,7 @@ export function useProjects(user: { id: string } | null) {
         pushLog(`프로젝트 등록: ${created.name}`, "🆕", "#4ade80");
       } catch (e) {
         pushLog(`저장 실패: ${(e as Error).message}`, "❌", "#ef4444");
+        toast?.("프로젝트 저장 실패 — 클라우드에 동기화되지 않았습니다", "error", "❌");
       } finally {
         setSaving(false);
       }
@@ -64,7 +68,10 @@ export function useProjects(user: { id: string } | null) {
     setProjects(p => p.map(x => x.id === id ? { ...x, ...fields } : x));
     if (isConfigured && user) {
       try { await db.updateProject(id, fields); }
-      catch (e) { pushLog(`업데이트 실패: ${(e as Error).message}`, "❌", "#ef4444"); }
+      catch (e) {
+        pushLog(`업데이트 실패: ${(e as Error).message}`, "❌", "#ef4444");
+        toast?.("업데이트 동기화 실패", "warn", "⚠️");
+      }
     }
   }, [user, pushLog]);
 
