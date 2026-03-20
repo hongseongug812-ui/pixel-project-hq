@@ -33,6 +33,12 @@ export default function AgentChat({ agent, onClose }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -109,7 +115,7 @@ export default function AgentChat({ agent, onClose }: Props) {
           </div>
           <div style={{ fontFamily: PF, fontSize: 4, color: "#4cc9f0", marginTop: 1 }}>🤖 {agent.aiModel}</div>
         </div>
-        <button onClick={onClose} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 5, color: "#444", padding: "2px 5px", border: "1px solid #1e1e28" }}>✕</button>
+        <button onClick={onClose} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 7, color: "#888", background: "#1a1a24", border: `1px solid ${rankColor}44`, padding: "3px 7px", borderRadius: 2, lineHeight: 1 }}>✕</button>
       </div>
 
       {/* Messages */}
