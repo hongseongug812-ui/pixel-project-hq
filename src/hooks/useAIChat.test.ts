@@ -86,7 +86,7 @@ describe("useAIChat", () => {
     );
     await act(async () => { await result.current.send("안녕"); });
 
-    const lastMsg = result.current.messages.at(-1);
+    const lastMsg = result.current.messages[result.current.messages.length - 1];
     expect(lastMsg?.content).toContain("오류");
     expect(mockToast).toHaveBeenCalledWith("AI 오류", "error", "⚠️");
     expect(result.current.loading).toBe(false);
@@ -139,7 +139,7 @@ describe("useAIChat", () => {
     await act(async () => { await result.current.send("완료로 바꿔줘"); });
 
     expect(mockHandlers.updateProject).toHaveBeenCalledWith(1, { status: "complete" });
-    const lastMsg = result.current.messages.at(-1);
+    const lastMsg = result.current.messages[result.current.messages.length - 1];
     expect(lastMsg?.content).toBe("업데이트 완료!");
   });
 

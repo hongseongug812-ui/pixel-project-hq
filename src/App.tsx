@@ -35,7 +35,7 @@ export default function App() {
 
   const { projects, setProjects, loadingData, saving, loadProjects, syncLocal, addProject, deleteProject, updateProject, toggleTask, addTask } = useProjects(user);
   const { agentState, tick }    = useAgents(projects);
-  const { serverStats }         = useServerStats(projects, tick);
+  const { serverStats, pingHistory, pinging, recheckServer } = useServerStats(projects, tick);
   const { exportJSON, exportHTML } = useExport(projects, toast);
   const { dropActive, setDropActive, fileAnalysis, setFileAnalysis, handleDrop } = useFileDrop(toast);
   const { migrateBanner, checkLocalData, handleMigrate, dismissMigrate } = useMigration(user, setProjects, toast, pushLog);
@@ -266,7 +266,16 @@ export default function App() {
       <div style={{ display: "flex", minHeight: "calc(100vh - 80px)" }}>
         {viewMode === "god" && showSidebar && (
           <div className={`phq-sidebar${showSidebar ? " phq-sidebar-visible" : ""}`} style={{ display: "flex" }}>
-            <LeftSidebar projects={projects} agentState={agentState} serverStats={serverStats} onSelectProject={setSelId} />
+            <LeftSidebar
+              projects={projects}
+              agentState={agentState}
+              serverStats={serverStats}
+              pingHistory={pingHistory}
+              pinging={pinging}
+              onSelectProject={setSelId}
+              onRecheckServer={recheckServer}
+              onRemoveServer={id => setSrv(id, "")}
+            />
           </div>
         )}
 

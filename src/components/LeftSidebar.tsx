@@ -3,16 +3,31 @@ import { PF, BF, ROOMS } from "../data/constants";
 import { neglect, daysSince } from "../utils/helpers";
 import { useLogs } from "../contexts/LogsContext";
 import { isTelegramConfigured, sendTelegram, buildDailyBriefing } from "../lib/telegram";
+import type { PingHistory } from "../hooks/useServerStats";
 import type { Project, AgentState, ServerStatsMap } from "../types";
 
-const UPTIME_POINTS = Array.from({ length: 36 }, (_, i) => `${i * 5},${1 + Math.random() * 10}`).join(" ");
 
-interface ServerMonitorProps { projects: Project[]; serverStats: ServerStatsMap; }
-function ServerMonitor({ projects, serverStats }: ServerMonitorProps) {
+interface ServerMonitorProps {
+  projects: Project[];
+  serverStats: ServerStatsMap;
+  pingHistory: PingHistory;
+  pinging: Set<string>;
+  onRecheck: (url: string) => void;
+  onGoToProject: (id: number | string) => void;
+  onRemoveServer: (projectId: number | string) => void;
+}
+function ServerMonitor({ projects, serverStats, pingHistory, pinging, onRecheck, onGoToProject, onRemoveServer }: ServerMonitorProps) {
+  const [expanded, setExpanded] = useState<number | string | null>(null);
   const deployed = projects.filter(p => p.serverUrl);
+
+  const openUrl = (url: string) => {
+    const full = url.startsWith("http") ? url : `https://${url}`;
+    try { window.open(new URL(full).href, "_blank", "noopener,noreferrer"); } catch { /* invalid */ }
+  };
+
   if (deployed.length === 0) return (
     <div style={{ background: "#090f09", border: "1px solid #4ade8022", borderRadius: 3, padding: 8 }}>
-      <div style={{ fontFamily: PF, fontSize: 6, color: "#4ade8055", marginBottom: 4, letterSpacing: 1 }}>📡 LIVE SERVERS</div>
+      <div style={{ fontFamily: PF, fontSize: 6, color: "#4ade8055", marginBottom: 4, letterSpacing: 1 }}>📡 SERVER MANAGER</div>
       <div style={{ fontFamily: BF, fontSize: 11, color: "#333", textAlign: "center", padding: "6px 0" }}>
         배포된 서버 없음<br />
         <span style={{ color: "#222", fontSize: 10 }}>프로젝트에 URL 등록 시 표시</span>
@@ -20,46 +35,126 @@ function ServerMonitor({ projects, serverStats }: ServerMonitorProps) {
     </div>
   );
 
+  const upCount = deployed.filter(p => serverStats[p.serverUrl!]?.status !== "down").length;
+
   return (
     <div style={{ background: "#070e07", border: "1px solid #4ade8033", borderRadius: 3, padding: 8 }}>
       <div style={{ fontFamily: PF, fontSize: 6, color: "#4ade80", marginBottom: 6, letterSpacing: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span>📡 LIVE SERVERS</span>
+        <span>📡 SERVER MANAGER</span>
         <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
           <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 4px #4ade80" }} />
-          <span style={{ fontFamily: PF, fontSize: 4, color: "#4ade8088" }}>{deployed.length} ONLINE</span>
+          <span style={{ fontFamily: PF, fontSize: 4, color: "#4ade8088" }}>{upCount}/{deployed.length}</span>
         </div>
       </div>
 
       {deployed.map(p => {
-        const s = serverStats[p.serverUrl!] || { ping: 18, uptime: 99.9, status: "up" as const };
+        const url = p.serverUrl!;
+        const s = serverStats[url] || { ping: 0, uptime: 99.9, status: "up" as const, real: false };
         const isUp = s.status !== "down";
+        const isPinging = pinging.has(url);
         const pingColor = s.ping < 50 ? "#4ade80" : s.ping < 150 ? "#facc15" : "#ef4444";
-        const domain = p.serverUrl!.replace(/^https?:\/\//, "").slice(0, 22);
+        const domain = url.replace(/^https?:\/\//, "").slice(0, 22);
+        const hist = pingHistory[url] ?? [];
+        const isOpen = expanded === p.id;
+
         return (
-          <div key={p.id} style={{
-            display: "flex", alignItems: "center", gap: 5,
-            padding: "4px 5px", marginBottom: 2,
-            background: "#0a130a", border: `1px solid ${isUp ? "#4ade8018" : "#ef444422"}`, borderRadius: 2,
-          }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: isUp ? "#4ade80" : "#ef4444", flexShrink: 0, boxShadow: isUp ? "0 0 4px #4ade80" : "0 0 4px #ef4444" }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: PF, fontSize: 4, color: isUp ? "#4ade80" : "#ef4444", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{domain}</div>
-              <div style={{ fontFamily: BF, fontSize: 10, color: "#555" }}>{p.name}</div>
+          <div key={p.id} style={{ marginBottom: 3 }}>
+            {/* 서버 행 */}
+            <div
+              onClick={() => setExpanded(isOpen ? null : p.id)}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "4px 5px", cursor: "pointer",
+                background: isOpen ? "#0d1a0d" : "#0a130a",
+                border: `1px solid ${isUp ? (isOpen ? "#4ade8044" : "#4ade8018") : "#ef444422"}`,
+                borderRadius: isOpen ? "2px 2px 0 0" : 2,
+              }}
+            >
+              <div style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, background: isUp ? "#4ade80" : "#ef4444", boxShadow: isUp ? "0 0 4px #4ade80" : "0 0 4px #ef4444" }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: PF, fontSize: 4, color: isUp ? "#4ade80" : "#ef4444", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{domain}</div>
+                <div style={{ fontFamily: BF, fontSize: 10, color: "#555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                {s.real || s.ping > 0 ? (
+                  <div style={{ fontFamily: PF, fontSize: 4, color: pingColor }}>{Math.round(s.ping)}ms</div>
+                ) : (
+                  <div style={{ fontFamily: PF, fontSize: 4, color: "#333" }}>---</div>
+                )}
+                <div style={{ fontFamily: PF, fontSize: 4, color: "#333" }}>{s.uptime?.toFixed(1)}%</div>
+              </div>
+              <span style={{ fontFamily: PF, fontSize: 4, color: "#2a3a2a", flexShrink: 0 }}>{isOpen ? "▲" : "▼"}</span>
             </div>
-            <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={{ fontFamily: PF, fontSize: 4, color: pingColor }}>{s.real ? "" : "~"}{Math.round(s.ping)}ms{!s.real && <span style={{ color: "#333", fontSize: 3 }}> est</span>}</div>
-              <div style={{ fontFamily: PF, fontSize: 4, color: "#333" }}>{s.uptime?.toFixed(1)}%</div>
-            </div>
+
+            {/* 확장 패널 */}
+            {isOpen && (
+              <div style={{ background: "#081008", border: "1px solid #4ade8022", borderTop: "none", padding: 8, borderRadius: "0 0 2px 2px" }}>
+                {/* 핑 히스토리 그래프 */}
+                {hist.length > 1 && (
+                  <div style={{ marginBottom: 6 }}>
+                    <div style={{ fontFamily: PF, fontSize: 4, color: "#4ade8055", marginBottom: 2 }}>PING HISTORY</div>
+                    <svg width="100%" height="20" viewBox={`0 0 ${hist.length * 8} 20`} preserveAspectRatio="none" style={{ display: "block" }}>
+                      {hist.map((v, i) => {
+                        const maxP = Math.max(...hist, 100);
+                        const h = Math.round((v / maxP) * 18);
+                        const color = v < 50 ? "#4ade80" : v < 150 ? "#facc15" : "#ef4444";
+                        return <rect key={i} x={i * 8 + 1} y={20 - h} width={6} height={h} fill={color} opacity="0.7" rx="1" />;
+                      })}
+                    </svg>
+                  </div>
+                )}
+
+                {/* 상태 정보 */}
+                <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: PF, fontSize: 3, color: "#2a4a2a", marginBottom: 1 }}>STATUS</div>
+                    <div style={{ fontFamily: PF, fontSize: 5, color: isUp ? "#4ade80" : "#ef4444" }}>{isUp ? "● UP" : "● DOWN"}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: PF, fontSize: 3, color: "#2a4a2a", marginBottom: 1 }}>UPTIME</div>
+                    <div style={{ fontFamily: PF, fontSize: 5, color: "#4ade8088" }}>{s.uptime?.toFixed(2)}%</div>
+                  </div>
+                  {s.lastCheck && (
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: PF, fontSize: 3, color: "#2a4a2a", marginBottom: 1 }}>LAST CHECK</div>
+                      <div style={{ fontFamily: BF, fontSize: 9, color: "#444" }}>{s.lastCheck}</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 액션 버튼 */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
+                  <button
+                    onClick={e => { e.stopPropagation(); onRecheck(url); }}
+                    disabled={isPinging}
+                    style={{ all: "unset", cursor: isPinging ? "not-allowed" : "pointer", fontFamily: PF, fontSize: 4, color: isPinging ? "#2a4a2a" : "#4ade80", background: "#0a180a", border: "1px solid #4ade8033", padding: "4px 0", textAlign: "center" }}
+                  >
+                    {isPinging ? "핑중..." : "🔄 재핑"}
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); openUrl(url); }}
+                    style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#60a5fa", background: "#080c18", border: "1px solid #60a5fa33", padding: "4px 0", textAlign: "center" }}
+                  >
+                    ↗ 열기
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); onGoToProject(p.id); setExpanded(null); }}
+                    style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#facc15", background: "#181200", border: "1px solid #facc1533", padding: "4px 0", textAlign: "center" }}
+                  >
+                    → 프로젝트
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); onRemoveServer(p.id); setExpanded(null); }}
+                    style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#ef4444", background: "#180808", border: "1px solid #ef444433", padding: "4px 0", textAlign: "center" }}
+                  >
+                    ✕ 제거
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
-
-      <div style={{ marginTop: 4, padding: "3px 4px", background: "#050d05", borderRadius: 2 }}>
-        <div style={{ fontFamily: PF, fontSize: 4, color: "#4ade8055", marginBottom: 2 }}>24H UPTIME</div>
-        <svg width="100%" height="14" viewBox="0 0 180 14" preserveAspectRatio="none">
-          <polyline points={UPTIME_POINTS} fill="none" stroke="#4ade80" strokeWidth="1" opacity=".4" />
-        </svg>
-      </div>
     </div>
   );
 }
@@ -266,10 +361,14 @@ interface LeftSidebarProps {
   projects: Project[];
   agentState: AgentState[];
   serverStats: ServerStatsMap;
+  pingHistory: PingHistory;
+  pinging: Set<string>;
   onSelectProject: (id: number | string) => void;
+  onRecheckServer: (url: string) => void;
+  onRemoveServer: (projectId: number | string) => void;
 }
 
-export default function LeftSidebar({ projects, agentState, serverStats, onSelectProject }: LeftSidebarProps) {
+export default function LeftSidebar({ projects, agentState, serverStats, pingHistory, pinging, onSelectProject, onRecheckServer, onRemoveServer }: LeftSidebarProps) {
   const { logs } = useLogs();
   const [sending, setSending] = useState(false);
 
@@ -288,7 +387,15 @@ export default function LeftSidebar({ projects, agentState, serverStats, onSelec
       display: "flex", flexDirection: "column", gap: 6, overflow: "auto",
       height: "calc(100vh - 80px)",
     }}>
-      <ServerMonitor projects={projects} serverStats={serverStats || {}} />
+      <ServerMonitor
+        projects={projects}
+        serverStats={serverStats || {}}
+        pingHistory={pingHistory}
+        pinging={pinging}
+        onRecheck={onRecheckServer}
+        onGoToProject={onSelectProject}
+        onRemoveServer={onRemoveServer}
+      />
       <AlertsPanel projects={projects} onSelect={onSelectProject} />
       <ProjectHealth projects={projects} />
       <AgentStatus agentState={agentState} />
