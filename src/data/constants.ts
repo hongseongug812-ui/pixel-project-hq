@@ -4,12 +4,36 @@ export const PF = `"Press Start 2P",monospace`;
 export const BF = `"DotGothic16","Noto Sans KR",monospace`;
 
 export const AGENTS: Agent[] = [
-  { id:"a1",name:"Claude",role:"CTO",hair:"#c47832",skin:"#ffd5a0",shirt:"#d4845a",pants:"#445566",body:"#f4a261",emoji:"🧠",task:"코드 리뷰 & 설계" },
-  { id:"a2",name:"Gemini",role:"보안관",hair:"#2a8ab0",skin:"#ffe0bd",shirt:"#3aa8d0",pants:"#445555",body:"#4cc9f0",emoji:"🛡️",task:"보안 스캔" },
-  { id:"a3",name:"Codex",role:"시니어 개발",hair:"#45a862",skin:"#f5cba7",shirt:"#5dc878",pants:"#445544",body:"#80ed99",emoji:"⚡",task:"배포 & 버그픽스" },
-  { id:"a4",name:"Devin",role:"주니어",hair:"#8a4abf",skin:"#ffdab9",shirt:"#a85ee0",pants:"#554466",body:"#c77dff",emoji:"📋",task:"테스트 & 문서" },
-  { id:"a5",name:"Cursor",role:"빌더",hair:"#bf8a4a",skin:"#ffe4c4",shirt:"#e0a85e",pants:"#554444",body:"#ffb347",emoji:"🔨",task:"프론트엔드 구현" },
-  { id:"a6",name:"Copilot",role:"어시스턴트",hair:"#4a6abf",skin:"#fdd5b1",shirt:"#5e78e0",pants:"#444455",body:"#7b9bf0",emoji:"🤝",task:"페어 프로그래밍" },
+  {
+    id:"a1", name:"Claude", role:"CTO", rank:"CTO", aiModel:"Claude 3.5 Sonnet",
+    personality:"전략적 사고와 코드 품질을 최우선시하는 기술 리더. 항상 장기적 아키텍처를 고민한다.",
+    hair:"#c47832", skin:"#ffd5a0", shirt:"#d4845a", pants:"#445566", body:"#f4a261", emoji:"🧠", task:"코드 리뷰 & 설계",
+  },
+  {
+    id:"a2", name:"Gemini", role:"보안 리드", rank:"Lead", aiModel:"Gemini 1.5 Pro",
+    personality:"멀티모달 분석으로 취약점을 탐지하는 보안 전문가. 위협 모델링과 침투 테스트를 담당.",
+    hair:"#2a8ab0", skin:"#ffe0bd", shirt:"#3aa8d0", pants:"#445555", body:"#4cc9f0", emoji:"🛡️", task:"보안 스캔",
+  },
+  {
+    id:"a3", name:"Codex", role:"시니어 개발", rank:"Senior", aiModel:"GPT-4o",
+    personality:"10년 경력의 풀스택 엔지니어. 배포 자동화와 성능 최적화를 전문으로 한다.",
+    hair:"#45a862", skin:"#f5cba7", shirt:"#5dc878", pants:"#445544", body:"#80ed99", emoji:"⚡", task:"배포 & 버그픽스",
+  },
+  {
+    id:"a4", name:"Devin", role:"주니어 개발", rank:"Junior", aiModel:"Devin AI",
+    personality:"빠르게 배우고 실행하는 자율형 주니어. 테스트 커버리지 100%를 목표로 한다.",
+    hair:"#8a4abf", skin:"#ffdab9", shirt:"#a85ee0", pants:"#554466", body:"#c77dff", emoji:"📋", task:"테스트 & 문서",
+  },
+  {
+    id:"a5", name:"Cursor", role:"프론트엔드 빌더", rank:"Senior", aiModel:"Cursor AI",
+    personality:"UI/UX 감각과 코드 생성 속도가 뛰어난 프론트엔드 전문가. 픽셀 퍼펙트를 추구한다.",
+    hair:"#bf8a4a", skin:"#ffe4c4", shirt:"#e0a85e", pants:"#554444", body:"#ffb347", emoji:"🔨", task:"프론트엔드 구현",
+  },
+  {
+    id:"a6", name:"Copilot", role:"어시스턴트", rank:"Assistant", aiModel:"GitHub Copilot",
+    personality:"모든 팀원의 생산성을 높이는 AI 어시스턴트. 컨텍스트를 이해하고 즉각 코드를 제안한다.",
+    hair:"#4a6abf", skin:"#fdd5b1", shirt:"#5e78e0", pants:"#444455", body:"#7b9bf0", emoji:"🤝", task:"페어 프로그래밍",
+  },
 ];
 
 export const ROOMS: Room[] = [

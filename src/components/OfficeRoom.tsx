@@ -27,37 +27,61 @@ interface OfficeRoomProps {
   onSelect: (id: number | string) => void;
 }
 
+const RANK_COLOR: Record<string, string> = {
+  CEO: "#facc15", CTO: "#f97316", Lead: "#a78bfa", Senior: "#4ade80", Junior: "#60a5fa", Assistant: "#f472b6",
+};
+
 function AgentTooltip({ agent, x, y, roomW }: { agent: AgentState; x: number; y: number; roomW: number }) {
   const PF = `"Press Start 2P",monospace`;
-  const task = agent.currentTask.length > 20 ? agent.currentTask.slice(0, 20) + "…" : agent.currentTask;
-  const nameW = Math.max(agent.name.length, task.length) * 5.5 + 20;
-  const boxW = Math.max(nameW, 80);
-  const boxH = 38;
-  // 화면 밖으로 나가지 않도록 위치 조정
+  const task = agent.currentTask.length > 22 ? agent.currentTask.slice(0, 22) + "…" : agent.currentTask;
+  const personality = agent.personality ? (agent.personality.length > 28 ? agent.personality.slice(0, 28) + "…" : agent.personality) : "";
+  const boxW = 130;
+  const boxH = agent.personality ? 62 : 48;
   const tx = Math.min(Math.max(x - boxW / 2 + 7, 4), roomW - boxW - 4);
-  const ty = y - boxH - 6;
+  const tyRaw = y - boxH - 6;
+  // 위가 잘리면 캐릭터 아래에 표시
+  const renderBelow = tyRaw < 2;
+  const ty = renderBelow ? y + 28 : tyRaw;
+  const rankColor = RANK_COLOR[agent.rank ?? "Assistant"] ?? "#888";
 
   return (
     <g style={{ pointerEvents: "none" }}>
       {/* 말풍선 꼬리 */}
-      <polygon
-        points={`${x + 3},${ty + boxH} ${x + 7},${ty + boxH} ${x + 7},${ty + boxH + 5}`}
-        fill="#1a1a2e"
-      />
+      {renderBelow ? (
+        <polygon points={`${x + 3},${ty - 5} ${x + 7},${ty - 5} ${x + 7},${ty}`} fill="#0d0d1a" />
+      ) : (
+        <polygon points={`${x + 3},${ty + boxH} ${x + 7},${ty + boxH} ${x + 7},${ty + boxH + 5}`} fill="#0d0d1a" />
+      )}
       {/* 배경 */}
-      <rect x={tx} y={ty} width={boxW} height={boxH} rx="2" fill="#1a1a2e" opacity="0.95" />
-      <rect x={tx} y={ty} width={boxW} height={boxH} rx="2" fill="none" stroke={agent.body} strokeWidth="1" opacity="0.7" />
+      <rect x={tx} y={ty} width={boxW} height={boxH} rx="3" fill="#0d0d1a" opacity="0.97" />
+      <rect x={tx} y={ty} width={boxW} height={boxH} rx="3" fill="none" stroke={agent.body} strokeWidth="1.5" opacity="0.6" />
+      {/* 계급 배지 */}
+      <rect x={tx + boxW - 38} y={ty + 5} width={32} height={10} rx="2" fill={rankColor} opacity="0.2" />
+      <rect x={tx + boxW - 38} y={ty + 5} width={32} height={10} rx="2" fill="none" stroke={rankColor} strokeWidth="0.8" />
+      <text x={tx + boxW - 22} y={ty + 13} fill={rankColor} fontSize="4.5" fontFamily={PF} textAnchor="middle" fontWeight="bold">
+        {agent.rank ?? ""}
+      </text>
       {/* 이름 + 이모지 */}
-      <text x={tx + 7} y={ty + 12} fill={agent.body} fontSize="6" fontFamily={PF} fontWeight="bold">
+      <text x={tx + 7} y={ty + 14} fill={agent.body} fontSize="6" fontFamily={PF} fontWeight="bold">
         {agent.emoji} {agent.name}
       </text>
       {/* 역할 */}
-      <text x={tx + 7} y={ty + 22} fill="#888" fontSize="5" fontFamily={PF}>
+      <text x={tx + 7} y={ty + 25} fill="#aaa" fontSize="4.5" fontFamily={PF}>
         {agent.role}
       </text>
+      {/* AI 모델 */}
+      <text x={tx + 7} y={ty + 35} fill="#4cc9f0" fontSize="4.5" fontFamily={PF}>
+        🤖 {agent.aiModel ?? ""}
+      </text>
+      {/* 퍼스널리티 */}
+      {personality && (
+        <text x={tx + 7} y={ty + 45} fill="#777" fontSize="4" fontFamily={PF}>
+          {personality}
+        </text>
+      )}
       {/* 현재 작업 */}
-      <text x={tx + 7} y={ty + 33} fill="#ccc" fontSize="5" fontFamily={PF}>
-        {task}
+      <text x={tx + 7} y={ty + boxH - 5} fill="#ccc" fontSize="4.5" fontFamily={PF}>
+        ▶ {task}
       </text>
     </g>
   );
@@ -67,6 +91,25 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMe
   const rm = roomCfg;
   const [hoveredAgentId, setHoveredAgentId] = useState<string | null>(null);
   const hoveredAgent = agents.find(a => a.id === hoveredAgentId) ?? null;
+
+  function handleSvgMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+    const svg = e.currentTarget;
+    const rect = svg.getBoundingClientRect();
+    const scaleX = rm.w / rect.width;
+    const scaleY = rm.h / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+    const THRESHOLD = 18;
+    let closest: AgentState | null = null;
+    let minDist = THRESHOLD;
+    for (const a of agents) {
+      const dx = a.x + 7 - mx;
+      const dy = a.y + 12 - my;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < minDist) { minDist = dist; closest = a; }
+    }
+    setHoveredAgentId(closest?.id ?? null);
+  }
   const T = 10;
   const cols = Math.floor(rm.w / T), rows = Math.floor(rm.h / T);
   const max = ROOM_MAX_DESKS[rm.key] || 6;
@@ -85,7 +128,9 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMe
   return (
     <div style={{ display: "inline-block", verticalAlign: "top", borderRadius: "4px 4px 0 0", overflow: "visible" }}>
       <svg width={rm.w} height={rm.h} viewBox={`0 0 ${rm.w} ${rm.h}`}
-        style={{ display: "block", imageRendering: "pixelated", borderRadius: "4px 4px 0 0", overflow: "visible" }}>
+        style={{ display: "block", imageRendering: "pixelated", borderRadius: "4px 4px 0 0", overflow: "visible" }}
+        onMouseMove={handleSvgMouseMove}
+        onMouseLeave={() => setHoveredAgentId(null)}>
         <defs>
           <filter id={`glow-${rm.key}`} x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation="2" result="blur" />
@@ -189,15 +234,8 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMe
         )}
 
         {agents.map(a => (
-          <g
-            key={a.id}
-            onMouseEnter={() => setHoveredAgentId(a.id)}
-            onMouseLeave={() => setHoveredAgentId(null)}
-            style={{ cursor: "pointer" }}
-          >
+          <g key={a.id}>
             <Character agent={a} x={a.x} y={a.y} frame={a.frame} dir={a.dx > 0 ? 1 : -1} />
-            {/* 호버 감지 영역 (캐릭터보다 살짝 크게) */}
-            <rect x={a.x - 2} y={a.y - 2} width="18" height="26" fill="transparent" />
           </g>
         ))}
 

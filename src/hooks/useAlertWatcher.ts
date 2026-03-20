@@ -1,18 +1,19 @@
 import { useEffect, useRef } from "react";
 import { sendTelegram, isTelegramConfigured } from "../lib/telegram";
+import { loadUserSettings } from "../components/MyPage";
 import type { Project } from "../types";
 
-const DISCORD_WEBHOOK = (import.meta.env.VITE_DISCORD_WEBHOOK as string | undefined)?.trim();
+const ENV_DISCORD_WEBHOOK = (import.meta.env.VITE_DISCORD_WEBHOOK as string | undefined)?.trim();
 const CHECK_INTERVAL  = 10 * 60 * 1000; // 10분마다 체크
 const MAX_ALERTS_PER_CYCLE = 3;          // 회당 최대 알림 수
 const MAX_FAILURES = 3;                  // 이 횟수 초과 실패 시 채널 비활성화
 
-async function sendDiscord(text: string): Promise<boolean> {
-  if (!DISCORD_WEBHOOK) return false;
+async function sendDiscord(text: string, webhookUrl: string): Promise<boolean> {
+  if (!webhookUrl) return false;
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
-    const res = await fetch(DISCORD_WEBHOOK, {
+    const res = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: text }),
@@ -74,18 +75,22 @@ export function useAlertWatcher(projects: Project[]) {
   const dcFailures   = useRef(0);
 
   async function notify(text: string) {
+    const userSettings = loadUserSettings();
+    const discordWebhook = userSettings.discordWebhook.trim() || ENV_DISCORD_WEBHOOK;
     if (isTelegramConfigured && tgFailures.current < MAX_FAILURES) {
       const ok = await sendTelegram(text);
       tgFailures.current = ok ? 0 : tgFailures.current + 1;
     }
-    if (DISCORD_WEBHOOK && dcFailures.current < MAX_FAILURES) {
-      const ok = await sendDiscord(text);
+    if (discordWebhook && dcFailures.current < MAX_FAILURES) {
+      const ok = await sendDiscord(text, discordWebhook);
       dcFailures.current = ok ? 0 : dcFailures.current + 1;
     }
   }
 
   useEffect(() => {
-    if (!isTelegramConfigured && !DISCORD_WEBHOOK) return;
+    const userSettings = loadUserSettings();
+    const discordWebhook = userSettings.discordWebhook.trim() || ENV_DISCORD_WEBHOOK;
+    if (!isTelegramConfigured && !discordWebhook) return;
     if (!projects.length) return;
 
     async function check() {

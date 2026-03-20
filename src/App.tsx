@@ -25,6 +25,7 @@ import PortfolioView      from "./components/PortfolioView";
 import AuthModal          from "./components/AuthModal";
 import Toast              from "./components/Toast";
 import AIChat             from "./components/AIChat";
+import MyPage             from "./components/MyPage";
 
 import type { Project } from "./types";
 
@@ -53,6 +54,7 @@ export default function App() {
   const [viewMode,    setViewMode]   = useState("god");
   const [showAdd,     setShowAdd]    = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showMyPage,  setShowMyPage]  = useState(false);
 
   // setSelId wrapper so useUndoDelete can call it
   function setSelId(id: number | string | null) { setSelIdState(id); }
@@ -229,6 +231,7 @@ export default function App() {
               <span style={{ fontFamily: PF, fontSize: 8, color: c }}>{v}</span>
             </div>
           ))}
+          <button onClick={() => setShowMyPage(true)} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#a78bfa", background: "#111118", border: "1px solid #2a1a4a", padding: "2px 6px" }}>⚙ MY</button>
           {user && (
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginLeft: 4 }}>
               <span style={{ fontFamily: BF, fontSize: 11, color: "#444" }}>{user.email?.split("@")[0]}</span>
@@ -324,6 +327,7 @@ export default function App() {
       )}
       <Toast toasts={toasts} onUndo={handleUndo} />
       <AIChat messages={aiMessages} loading={aiLoading} onSend={aiSend} onClear={aiClear} />
+      {showMyPage && <MyPage onClose={() => setShowMyPage(false)} />}
     </div>
   );
 }

@@ -34,10 +34,16 @@ export interface Project {
 
 // ── Agent types ───────────────────────────────────────────────────────
 
+export type AgentRank = "CEO" | "CTO" | "Lead" | "Senior" | "Junior" | "Assistant";
+export type AIModel = "Claude 3.5 Sonnet" | "Gemini 1.5 Pro" | "GPT-4o" | "Devin AI" | "Cursor AI" | "GitHub Copilot";
+
 export interface Agent {
   id: string;
   name: string;
   role: string;
+  rank: AgentRank;
+  aiModel: AIModel;
+  personality: string;
   hair: string;
   skin: string;
   shirt: string;
