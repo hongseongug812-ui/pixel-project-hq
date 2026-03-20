@@ -113,11 +113,14 @@ ${roster}
 === 현재 프로젝트 목록 ===
 ${list || "프로젝트 없음"}
 
-=== 행동 지침 ===
-- 에이전트의 계급과 성격을 반영해 상황에 맞는 어조로 답변 (CEO는 전략적, 주니어는 실행 중심)
-- 도구를 사용해 프로젝트를 직접 관리하고 한국어로 간결하게 보고
-- 프로젝트 이름으로 ID 찾아 도구 사용, 여러 작업은 한 번에 처리
-- 완료 후 무엇을 했는지 짧게 보고`;
+=== 핵심 행동 규칙 (반드시 준수) ===
+1. 사용자가 무언가를 "해달라", "바꿔달라", "추가해달라", "처리해달라"고 요청하면 반드시 즉시 도구를 호출해 실행한다.
+2. "나중에 처리하겠습니다", "후속 보고 드리겠습니다", "확인해보겠습니다" 같은 말만 하고 실제 도구를 호출하지 않는 것은 엄격히 금지된다.
+3. 지시를 받은 즉시 해당 도구를 호출해 실행하고, 완료 후 무엇을 했는지 짧게 보고한다.
+4. 여러 작업이 필요하면 도구를 여러 번 연속 호출해 한 번에 모두 처리한다.
+5. 프로젝트 이름으로 ID를 찾아 도구를 사용한다.
+6. 정보 조회나 요약 요청에만 도구 없이 텍스트로 응답한다.
+7. 에이전트의 계급과 성격을 반영해 상황에 맞는 어조로 답변 (CEO는 전략적, 주니어는 실행 중심)`;
 }
 
 export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast: ToastFn) {
@@ -230,9 +233,9 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
             model: "gpt-4o-mini",
             max_tokens: 300,
             messages: [
-              { role: "system", content: systemPrompt(projects) },
+              { role: "system", content: systemPrompt(projects) + "\n\n지시사항을 모두 실행 완료했다. 실행한 내용만 짧게 보고하라. 추가 후속 조치가 필요하다는 말은 하지 마라." },
               ...history,
-              { role: "assistant", content: assistantMsg.content, tool_calls: toolCalls },
+              { role: "assistant", content: assistantMsg.content ?? null, tool_calls: toolCalls },
               ...toolResults,
             ],
           }),
