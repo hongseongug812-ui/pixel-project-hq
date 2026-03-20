@@ -3,7 +3,8 @@ import { PF, BF, STATUS_MAP, ROOMS, AGENTS } from "../data/constants";
 import { neglect, daysSince } from "../utils/helpers";
 import { safeOpenUrl } from "../utils/security";
 import { suggestTasks, generateDescription, isOpenAIConfigured } from "../lib/openai";
-import type { Project, ProjectStatus, ProjectPriority } from "../types";
+import type { Project, ProjectStatus, ProjectPriority, Agent } from "../types";
+import type { GitCommit } from "../hooks/useGitHub";
 
 interface DetailPanelProps {
   project: Project;
@@ -14,9 +15,12 @@ interface DetailPanelProps {
   onAddTask: (pid: number | string, text: string) => void;
   onUpdate: (id: number | string, fields: Partial<Project>) => void;
   onClone?: (p: Project) => void;
+  agents?: Agent[];
+  commits?: GitCommit[];
 }
 
-export default function DetailPanel({ project: p, onClose, onToggle, onDelete, onSetServer, onAddTask, onUpdate, onClone }: DetailPanelProps) {
+export default function DetailPanel({ project: p, onClose, onToggle, onDelete, onSetServer, onAddTask, onUpdate, onClone, agents, commits }: DetailPanelProps) {
+  const allAgents = agents ?? AGENTS;
   const [si, setSi] = useState(p?.serverUrl || "");
   const [gi, setGi] = useState(p?.githubUrl || "");
   const [thumb, setThumb] = useState(p?.thumbnail || "");
@@ -163,7 +167,7 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
       <div>
         <div style={{ fontFamily: PF, fontSize: 4, color: "#555", marginBottom: 3 }}>AI AGENT</div>
         <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-          {AGENTS.map(a => {
+          {allAgents.map(a => {
             const isAssigned = p.assignedAgentId === a.id;
             return (
               <button key={a.id} onClick={() => onUpdate(p.id, { assignedAgentId: isAssigned ? null : a.id })}
@@ -180,7 +184,7 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
           })}
         </div>
         {p.assignedAgentId && (() => {
-          const a = AGENTS.find(ag => ag.id === p.assignedAgentId);
+          const a = allAgents.find(ag => ag.id === p.assignedAgentId);
           return a ? (
             <div style={{ fontFamily: BF, fontSize: 10, color: "#555", marginTop: 3 }}>
               {a.emoji} {a.name} ({a.role}) 배정됨
@@ -332,6 +336,20 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
               <span style={{ fontFamily: BF, fontSize: 10, color: "#a78bfa", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.githubUrl}</span>
               <span style={{ fontFamily: PF, fontSize: 4, color: "#a78bfa66" }}>↗</span>
             </button>
+          )}
+          {commits && commits.length > 0 && (
+            <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 2 }}>
+              <div style={{ fontFamily: PF, fontSize: 3, color: "#555", marginBottom: 1 }}>최근 커밋</div>
+              {commits.slice(0, 3).map(c => (
+                <button key={c.sha} onClick={() => safeOpenUrl(c.url)} style={{
+                  all: "unset", cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 4,
+                  padding: "3px 5px", background: "#08060e", border: "1px solid #a78bfa22",
+                }}>
+                  <span style={{ fontFamily: PF, fontSize: 3, color: "#a78bfa88", flexShrink: 0, marginTop: 1 }}>{c.sha}</span>
+                  <span style={{ fontFamily: BF, fontSize: 10, color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{c.message}</span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </div>

@@ -275,24 +275,50 @@ function AlertsPanel({ projects, onSelect }: AlertsPanelProps) {
   );
 }
 
-interface AgentStatusProps { agentState: AgentState[]; }
-function AgentStatus({ agentState }: AgentStatusProps) {
+interface AgentStatusProps {
+  agentState: AgentState[];
+  projects: Project[];
+  onRemoveAgent?: (id: string) => void;
+}
+function AgentStatus({ agentState, projects, onRemoveAgent }: AgentStatusProps) {
+  // KPI: count done tasks and assigned projects per agent
+  const kpi = Object.fromEntries(agentState.map(a => {
+    const assigned = projects.filter(p => p.assignedAgentId === a.id);
+    const doneTasks = assigned.reduce((sum, p) => sum + p.tasks.filter(t => t.done).length, 0);
+    return [a.id, { projects: assigned.length, doneTasks }];
+  }));
+
   return (
     <div style={{ background: "#0e0e14", border: "1px solid #1e1e28", borderRadius: 3, padding: 8 }}>
       <div style={{ fontFamily: PF, fontSize: 6, color: "#f4a261", marginBottom: 5, letterSpacing: 1 }}>🤖 AI AGENTS</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
         {agentState.map(a => {
           const rm = ROOMS.find(r => r.key === a.room);
+          const isCustom = a.id.startsWith("custom_");
+          const stat = kpi[a.id] ?? { projects: 0, doneTasks: 0 };
           return (
-            <div key={a.id} style={{ background: "#0a0a12", border: "1px solid #1a1a22", borderRadius: 2, padding: "4px 5px" }}>
+            <div key={a.id} style={{ background: "#0a0a12", border: `1px solid ${isCustom ? "#4cc9f033" : "#1a1a22"}`, borderRadius: 2, padding: "4px 5px", position: "relative" }}>
+              {isCustom && onRemoveAgent && (
+                <button
+                  onClick={() => onRemoveAgent(a.id)}
+                  title="해고"
+                  style={{ all: "unset", position: "absolute", top: 2, right: 2, cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#ef444466", lineHeight: 1 }}
+                >×</button>
+              )}
               <div style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 1 }}>
                 <span style={{ fontSize: 9 }}>{a.emoji}</span>
-                <span style={{ fontFamily: PF, fontSize: 4, color: a.body }}>{a.name}</span>
+                <span style={{ fontFamily: PF, fontSize: 4, color: a.body, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{a.name}</span>
               </div>
-              <div style={{ fontFamily: BF, fontSize: 10, color: "#555", display: "flex", alignItems: "center", gap: 2 }}>
+              <div style={{ fontFamily: BF, fontSize: 10, color: "#555", display: "flex", alignItems: "center", gap: 2, marginBottom: 2 }}>
                 <span style={{ color: rm?.color || "#555", fontSize: 7 }}>●</span>
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.currentTask || a.task}</span>
               </div>
+              {(stat.projects > 0 || stat.doneTasks > 0) && (
+                <div style={{ display: "flex", gap: 4 }}>
+                  <span style={{ fontFamily: PF, fontSize: 3, color: "#60a5fa88" }}>PRJ:{stat.projects}</span>
+                  <span style={{ fontFamily: PF, fontSize: 3, color: "#4ade8088" }}>✓{stat.doneTasks}</span>
+                </div>
+              )}
             </div>
           );
         })}
@@ -376,9 +402,10 @@ interface LeftSidebarProps {
   onSelectProject: (id: number | string) => void;
   onRecheckServer: (url: string) => void;
   onRemoveServer: (projectId: number | string) => void;
+  onRemoveAgent?: (id: string) => void;
 }
 
-export default function LeftSidebar({ projects, agentState, serverStats, pingHistory, pinging, onSelectProject, onRecheckServer, onRemoveServer }: LeftSidebarProps) {
+export default function LeftSidebar({ projects, agentState, serverStats, pingHistory, pinging, onSelectProject, onRecheckServer, onRemoveServer, onRemoveAgent }: LeftSidebarProps) {
   const { logs } = useLogs();
   const [sending, setSending] = useState(false);
 
@@ -408,7 +435,7 @@ export default function LeftSidebar({ projects, agentState, serverStats, pingHis
       />
       <AlertsPanel projects={projects} onSelect={onSelectProject} />
       <ProjectHealth projects={projects} />
-      <AgentStatus agentState={agentState} />
+      <AgentStatus agentState={agentState} projects={projects} onRemoveAgent={onRemoveAgent} />
       <ActivityLog logs={logs} />
 
       {/* Telegram briefing */}

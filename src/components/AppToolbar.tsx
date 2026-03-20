@@ -10,12 +10,14 @@ interface Props {
   onSearch: (q: string) => void;
   onToggleSidebar: () => void;
   onAdd: () => void;
+  onHire: () => void;
 }
 
 const VIEW_MODES: [string, string][] = [
   ["god", "🏢 GOD"],
   ["kanban", "📌 KANBAN"],
   ["portfolio", "📋 FOLIO"],
+  ["feed", "💬 FEED"],
 ];
 
 const FILTERS = [
@@ -28,7 +30,7 @@ const FILTERS = [
 
 export default function AppToolbar({
   viewMode, filter, search, showSidebar,
-  onViewMode, onFilter, onSearch, onToggleSidebar, onAdd,
+  onViewMode, onFilter, onSearch, onToggleSidebar, onAdd, onHire,
 }: Props) {
   return (
     <nav
@@ -96,6 +98,15 @@ export default function AppToolbar({
           style={{ fontFamily: BF, fontSize: 11, color: "#aaa", background: "#111118", border: "1px solid #1e1e28", padding: "3px 8px", outline: "none", width: 160 }}
         />
       )}
+
+      {/* 채용 버튼 */}
+      <button
+        onClick={onHire}
+        aria-label="에이전트 채용"
+        style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#4cc9f0", background: "#0a0e14", border: "1px solid #4cc9f044", padding: "4px 10px" }}
+      >
+        🤖 HIRE
+      </button>
 
       {/* 추가 버튼 */}
       <button

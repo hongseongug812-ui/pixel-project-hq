@@ -17,6 +17,9 @@ import { useAIChat }      from "./hooks/useAIChat";
 import { useAIScheduler } from "./hooks/useAIScheduler";
 import { useAlertWatcher } from "./hooks/useAlertWatcher";
 import { useAutoPilot }   from "./hooks/useAutoPilot";
+import { useCompanyFeed } from "./hooks/useCompanyFeed";
+import { useCustomAgents } from "./hooks/useCustomAgents";
+import { useGitHub }      from "./hooks/useGitHub";
 
 import OfficePlan         from "./components/OfficePlan";
 import LeftSidebar        from "./components/LeftSidebar";
@@ -32,6 +35,8 @@ import AgentChat          from "./components/AgentChat";
 import KanbanView         from "./components/KanbanView";
 import AppHeader          from "./components/AppHeader";
 import AppToolbar         from "./components/AppToolbar";
+import CompanyFeed        from "./components/CompanyFeed";
+import HireModal          from "./components/HireModal";
 
 import type { Project } from "./types";
 
@@ -49,6 +54,7 @@ export default function App() {
   const [showMyPage,   setShowMyPage]  = useState(false);
   const [aiChatOpen,   setAiChatOpen]  = useState(false);
   const [agentChatId,  setAgentChatId] = useState<string | null>(null);
+  const [showHire,     setShowHire]    = useState(false);
 
   const { projects, setProjects, loadingData, saving, loadProjects, syncLocal, addProject, deleteProject, updateProject, toggleTask, addTask } = useProjects(user);
   const { agentState, tick, isMeetingActive } = useAgents(projects, aiChatOpen);
@@ -65,6 +71,9 @@ export default function App() {
     toast,
   );
   useAIScheduler(projects, pushAIMessage, toast);
+  const { messages: feedMessages, postAsMe, postCEOAnnouncement, clearFeed } = useCompanyFeed(projects);
+  const { allAgents, addAgent, removeAgent } = useCustomAgents();
+  const { commitMap } = useGitHub(projects);
 
   // setSelId wrapper so useUndoDelete can call it
   function setSelId(id: number | string | null) { setSelIdState(id); }
@@ -236,6 +245,7 @@ export default function App() {
         onSearch={setSearch}
         onToggleSidebar={() => setShowSidebar(s => !s)}
         onAdd={() => { setShowAdd(true); setFileAnalysis(null); }}
+        onHire={() => setShowHire(true)}
       />
 
       {/* Main */}
@@ -251,6 +261,7 @@ export default function App() {
               onSelectProject={setSelId}
               onRecheckServer={recheckServer}
               onRemoveServer={id => setSrv(id, "")}
+              onRemoveAgent={removeAgent}
             />
           </div>
         )}
@@ -283,6 +294,13 @@ export default function App() {
           </div>
         ) : viewMode === "kanban" ? (
           <KanbanView projects={projects} serverStats={serverStats} onSelect={id => { setSelIdState(id); setViewMode("god"); }} />
+        ) : viewMode === "feed" ? (
+          <CompanyFeed
+            messages={feedMessages}
+            onPostAsMe={postAsMe}
+            onPostAnnouncement={postCEOAnnouncement}
+            onClear={clearFeed}
+          />
         ) : (
           <PortfolioView projects={projects} onSelect={id => { setSelIdState(id); setViewMode("god"); }} onExportJSON={exportJSON} onExportHTML={exportHTML} />
         )}
@@ -291,7 +309,10 @@ export default function App() {
           <div className="phq-detail" style={{ width: 265, flexShrink: 0 }}>
             <DetailPanel project={sel} onClose={() => setSelIdState(null)}
               onToggle={toggleTask} onDelete={handleDelete} onClone={cloneProject}
-              onSetServer={setSrv} onAddTask={addTask} onUpdate={updateProject} />
+              onSetServer={setSrv} onAddTask={addTask} onUpdate={updateProject}
+              agents={allAgents}
+              commits={commitMap[sel.id]}
+            />
           </div>
         )}
       </div>
@@ -305,6 +326,7 @@ export default function App() {
       <AIChat messages={aiMessages} loading={aiLoading} onSend={aiSend} onClear={aiClear} onOpenChange={setAiChatOpen} />
       {agentChatId && (() => { const ag = agentState.find(a => a.id === agentChatId); return ag ? <AgentChat agent={ag} onClose={() => setAgentChatId(null)} /> : null; })()}
       {showMyPage && <MyPage onClose={() => { setShowMyPage(false); window.dispatchEvent(new Event("phq-avatar-updated")); }} />}
+      {showHire && <HireModal onHire={agent => { addAgent(agent); toast(`${agent.emoji} ${agent.name} 채용 완료!`, "success", "🤖"); setShowHire(false); }} onClose={() => setShowHire(false)} />}
     </div>
   );
 }
