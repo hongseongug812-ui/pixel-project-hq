@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { PF, BF, ROOMS } from "./data/constants";
+import { PF, BF } from "./data/constants";
 import { useAuth } from "./contexts/AuthContext";
 import { isConfigured, supabase } from "./lib/supabase";
 import { rowToProject } from "./lib/db";
@@ -15,8 +15,9 @@ import { useMigration }   from "./hooks/useMigration";
 import { useUndoDelete }  from "./hooks/useUndoDelete";
 import { useAIChat }      from "./hooks/useAIChat";
 import { useAlertWatcher } from "./hooks/useAlertWatcher";
+import { useAutoPilot }   from "./hooks/useAutoPilot";
 
-import OfficeRoom         from "./components/OfficeRoom";
+import OfficePlan         from "./components/OfficePlan";
 import LeftSidebar        from "./components/LeftSidebar";
 import DetailPanel        from "./components/DetailPanel";
 import AddModal           from "./components/AddModal";
@@ -26,6 +27,7 @@ import AuthModal          from "./components/AuthModal";
 import Toast              from "./components/Toast";
 import AIChat             from "./components/AIChat";
 import MyPage             from "./components/MyPage";
+import AgentChat          from "./components/AgentChat";
 
 import type { Project } from "./types";
 
@@ -34,27 +36,30 @@ export default function App() {
   const { pushLog, initLogs }   = useLogs();
   const { toasts, setToasts, toast } = useToast();
 
+  const [selId,        setSelIdState] = useState<number | string | null>(null);
+  const [filter,       setFilter]     = useState("all");
+  const [search,       setSearch]     = useState("");
+  const [viewMode,     setViewMode]   = useState("god");
+  const [showAdd,      setShowAdd]    = useState(false);
+  const [showSidebar,  setShowSidebar] = useState(true);
+  const [showMyPage,   setShowMyPage]  = useState(false);
+  const [aiChatOpen,   setAiChatOpen]  = useState(false);
+  const [agentChatId,  setAgentChatId] = useState<string | null>(null);
+
   const { projects, setProjects, loadingData, saving, loadProjects, syncLocal, addProject, deleteProject, updateProject, toggleTask, addTask } = useProjects(user);
-  const { agentState, tick, isMeetingActive } = useAgents(projects);
+  const { agentState, tick, isMeetingActive } = useAgents(projects, aiChatOpen);
   const { serverStats, pingHistory, pinging, recheckServer } = useServerStats(projects, tick);
   const { exportJSON, exportHTML } = useExport(projects, toast);
   const { dropActive, setDropActive, fileAnalysis, setFileAnalysis, handleDrop } = useFileDrop(toast);
   const { migrateBanner, checkLocalData, handleMigrate, dismissMigrate } = useMigration(user, setProjects, toast, pushLog);
   const { handleDelete, handleUndo } = useUndoDelete(projects, deleteProject, addProject, setToasts, toast, setSelId);
   useAlertWatcher(projects);
+  useAutoPilot(projects, serverStats, updateProject, addTask);
   const { messages: aiMessages, loading: aiLoading, send: aiSend, clear: aiClear } = useAIChat(
     projects,
     { updateProject, addProject, deleteProject, toggleTask, addTask },
     toast,
   );
-
-  const [selId,       setSelIdState] = useState<number | string | null>(null);
-  const [filter,      setFilter]     = useState("all");
-  const [search,      setSearch]     = useState("");
-  const [viewMode,    setViewMode]   = useState("god");
-  const [showAdd,     setShowAdd]    = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
-  const [showMyPage,  setShowMyPage]  = useState(false);
 
   // setSelId wrapper so useUndoDelete can call it
   function setSelId(id: number | string | null) { setSelIdState(id); }
@@ -297,14 +302,14 @@ export default function App() {
                 <button onClick={() => { setSearch(""); setFilter("all"); }} style={{ all: "unset", cursor: "pointer", fontFamily: BF, fontSize: 12, color: "#facc15", border: "1px solid #facc1533", padding: "4px 12px", marginTop: 4 }}>필터 초기화</button>
               </div>
             ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {ROOMS.map(rm => (
-                  <OfficeRoom key={rm.key} roomCfg={rm} projects={grouped[rm.key] || []}
-                    agents={agentState.filter(a => a.room === rm.key)} selectedId={selId}
-                    isMeetingActive={rm.key === "meeting" ? isMeetingActive : false}
-                    onSelect={id => setSelIdState(selId === id ? null : id)} />
-                ))}
-              </div>
+              <OfficePlan
+                grouped={grouped}
+                agentState={agentState}
+                selectedId={selId}
+                isMeetingActive={isMeetingActive}
+                onSelect={(id: number | string) => setSelIdState(selId === id ? null : id)}
+                onAgentClick={(id: string) => setAgentChatId(prev => prev === id ? null : id)}
+              />
             )}
           </div>
         ) : (
@@ -326,7 +331,8 @@ export default function App() {
           rawContent={fileAnalysis.rawContent} onConfirm={addProject} onClose={() => setFileAnalysis(null)} />
       )}
       <Toast toasts={toasts} onUndo={handleUndo} />
-      <AIChat messages={aiMessages} loading={aiLoading} onSend={aiSend} onClear={aiClear} />
+      <AIChat messages={aiMessages} loading={aiLoading} onSend={aiSend} onClear={aiClear} onOpenChange={setAiChatOpen} />
+      {agentChatId && (() => { const ag = agentState.find(a => a.id === agentChatId); return ag ? <AgentChat agent={ag} onClose={() => setAgentChatId(null)} /> : null; })()}
       {showMyPage && <MyPage onClose={() => setShowMyPage(false)} />}
     </div>
   );

@@ -9,10 +9,16 @@ interface AIChatProps {
   loading: boolean;
   onSend: (text: string) => void;
   onClear: () => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export default function AIChat({ messages, loading, onSend, onClear }: AIChatProps) {
+export default function AIChat({ messages, loading, onSend, onClear, onOpenChange }: AIChatProps) {
   const [open, setOpen] = useState(false);
+
+  function toggleOpen(val: boolean) {
+    setOpen(val);
+    onOpenChange?.(val);
+  }
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -30,7 +36,7 @@ export default function AIChat({ messages, loading, onSend, onClear }: AIChatPro
     <>
       {/* Floating button */}
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => toggleOpen(!open)}
         style={{
           position: "fixed", bottom: 20, right: 20, zIndex: 1000,
           width: 44, height: 44, borderRadius: 0,

@@ -25,6 +25,7 @@ interface OfficeRoomProps {
   selectedId: number | string | null;
   isMeetingActive?: boolean;
   onSelect: (id: number | string) => void;
+  onAgentClick?: (agentId: string) => void;
 }
 
 const RANK_COLOR: Record<string, string> = {
@@ -87,28 +88,34 @@ function AgentTooltip({ agent, x, y, roomW }: { agent: AgentState; x: number; y:
   );
 }
 
-export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMeetingActive, onSelect }: OfficeRoomProps) {
+export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMeetingActive, onSelect, onAgentClick }: OfficeRoomProps) {
   const rm = roomCfg;
   const [hoveredAgentId, setHoveredAgentId] = useState<string | null>(null);
   const hoveredAgent = agents.find(a => a.id === hoveredAgentId) ?? null;
 
-  function handleSvgMouseMove(e: React.MouseEvent<SVGSVGElement>) {
-    const svg = e.currentTarget;
-    const rect = svg.getBoundingClientRect();
-    const scaleX = rm.w / rect.width;
-    const scaleY = rm.h / rect.height;
-    const mx = (e.clientX - rect.left) * scaleX;
-    const my = (e.clientY - rect.top) * scaleY;
-    const THRESHOLD = 18;
-    let closest: AgentState | null = null;
-    let minDist = THRESHOLD;
+  function svgXY(e: React.MouseEvent<SVGSVGElement>) {
+    const r = e.currentTarget.getBoundingClientRect();
+    return { mx: (e.clientX - r.left) * (rm.w / r.width), my: (e.clientY - r.top) * (rm.h / r.height) };
+  }
+
+  function closestAgent(mx: number, my: number, threshold = 18) {
+    let best: AgentState | null = null, minD = threshold;
     for (const a of agents) {
-      const dx = a.x + 7 - mx;
-      const dy = a.y + 12 - my;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < minDist) { minDist = dist; closest = a; }
+      const d = Math.sqrt((a.x + 7 - mx) ** 2 + (a.y + 12 - my) ** 2);
+      if (d < minD) { minD = d; best = a; }
     }
-    setHoveredAgentId(closest?.id ?? null);
+    return best;
+  }
+
+  function handleSvgMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+    const { mx, my } = svgXY(e);
+    setHoveredAgentId(closestAgent(mx, my)?.id ?? null);
+  }
+
+  function handleSvgClick(e: React.MouseEvent<SVGSVGElement>) {
+    const { mx, my } = svgXY(e);
+    const a = closestAgent(mx, my);
+    if (a) onAgentClick?.(a.id);
   }
   const T = 10;
   const cols = Math.floor(rm.w / T), rows = Math.floor(rm.h / T);
@@ -130,7 +137,8 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMe
       <svg width={rm.w} height={rm.h} viewBox={`0 0 ${rm.w} ${rm.h}`}
         style={{ display: "block", imageRendering: "pixelated", borderRadius: "4px 4px 0 0", overflow: "visible" }}
         onMouseMove={handleSvgMouseMove}
-        onMouseLeave={() => setHoveredAgentId(null)}>
+        onMouseLeave={() => setHoveredAgentId(null)}
+        onClick={handleSvgClick}>
         <defs>
           <filter id={`glow-${rm.key}`} x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation="2" result="blur" />
