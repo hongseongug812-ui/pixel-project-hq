@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { AGENTS, ROOMS } from "../data/constants";
+import { useLogs } from "../contexts/LogsContext";
+import type { AgentState, Project } from "../types";
 
-const LOG_ACTIONS = [
+const LOG_ACTIONS: Array<(p: { name: string }) => string> = [
   p => `${p.name} 코드 리뷰 완료`,
   p => `${p.name} 보안 스캔 ✓`,
   p => `${p.name} 의존성 업데이트 확인`,
@@ -17,17 +19,21 @@ const LOG_ACTIONS = [
   p => `${p.name} 데이터베이스 백업 완료`,
 ];
 
-export function useAgents(projects, pushLog) {
-  const [agentState, setAgentState] = useState(() =>
+export function useAgents(projects: Project[]) {
+  const { pushLog } = useLogs();
+  const [agentState, setAgentState] = useState<AgentState[]>(() =>
     AGENTS.map((a, i) => ({
-      ...a, room: ROOMS[i % ROOMS.length].key,
-      x: 20 + Math.random() * 100, y: 50 + Math.random() * 80,
-      frame: 0, dx: 0.3 + Math.random() * 0.5, currentTask: a.task,
+      ...a,
+      room: ROOMS[i % ROOMS.length].key,
+      x: 20 + Math.random() * 100,
+      y: 50 + Math.random() * 80,
+      frame: 0,
+      dx: 0.3 + Math.random() * 0.5,
+      currentTask: a.task,
     }))
   );
   const [tick, setTick] = useState(0);
 
-  // 이동 루프
   useEffect(() => {
     const iv = setInterval(() => {
       setTick(t => t + 1);
@@ -42,7 +48,6 @@ export function useAgents(projects, pushLog) {
     return () => clearInterval(iv);
   }, []);
 
-  // 에이전트 액션 (25틱마다)
   useEffect(() => {
     if (tick % 25 !== 0 || tick === 0) return;
     setAgentState(prev => {
@@ -51,8 +56,9 @@ export function useAgents(projects, pushLog) {
       const rm = ROOMS[Math.floor(Math.random() * ROOMS.length)];
       const action = LOG_ACTIONS[Math.floor(Math.random() * LOG_ACTIONS.length)];
       const proj = projects.length ? projects[Math.floor(Math.random() * projects.length)] : { name: "시스템" };
-      c[i] = { ...c[i], room: rm.key, x: 20 + Math.random() * 80, y: 50 + Math.random() * 60, currentTask: action(proj).replace((proj.name || "") + " ", "") };
-      pushLog(action(proj), c[i].emoji, c[i].body, c[i].name);
+      const msg = action(proj);
+      c[i] = { ...c[i], room: rm.key, x: 20 + Math.random() * 80, y: 50 + Math.random() * 60, currentTask: msg.replace((proj.name || "") + " ", "") };
+      pushLog(msg, c[i].emoji, c[i].body, c[i].name);
       return c;
     });
   }, [tick, projects, pushLog]);

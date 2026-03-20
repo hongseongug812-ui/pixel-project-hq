@@ -1,37 +1,63 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PF, BF, STATUS_MAP, ROOMS } from "../data/constants";
 import { neglect, daysSince } from "../utils/helpers";
 import { suggestTasks, generateDescription, isOpenAIConfigured } from "../lib/openai";
+import type { Project, ProjectStatus, ProjectPriority } from "../types";
 
-export default function DetailPanel({ project: p, onClose, onToggle, onDelete, onSetServer, onAddTask, onUpdate }) {
+interface DetailPanelProps {
+  project: Project;
+  onClose: () => void;
+  onToggle: (pid: number | string, tid: string) => void;
+  onDelete: (id: number | string) => void;
+  onSetServer: (id: number | string, url: string) => void;
+  onAddTask: (pid: number | string, text: string) => void;
+  onUpdate: (id: number | string, fields: Partial<Project>) => void;
+  onClone?: (p: Project) => void;
+}
+
+export default function DetailPanel({ project: p, onClose, onToggle, onDelete, onSetServer, onAddTask, onUpdate, onClone }: DetailPanelProps) {
   const [si, setSi] = useState(p?.serverUrl || "");
   const [gi, setGi] = useState(p?.githubUrl || "");
   const [thumb, setThumb] = useState(p?.thumbnail || "");
   const [desc, setDesc] = useState(p?.description || "");
-  const [editingDesc, setEditingDesc] = useState(false);
   const [newTask, setNewTask] = useState("");
   const [aiTaskLoading, setAiTaskLoading] = useState(false);
   const [aiDescLoading, setAiDescLoading] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const descTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setSi(p?.serverUrl || "");
     setGi(p?.githubUrl || "");
     setThumb(p?.thumbnail || "");
     setDesc(p?.description || "");
-    setEditingDesc(false);
   }, [p?.id]);
 
+  useEffect(() => {
+    if (descTimerRef.current) clearTimeout(descTimerRef.current);
+    descTimerRef.current = setTimeout(() => {
+      if (desc !== (p?.description || "")) {
+        onUpdate(p.id, { description: desc || null });
+      }
+    }, 500);
+    return () => { if (descTimerRef.current) clearTimeout(descTimerRef.current); };
+  }, [desc]);
+
   if (!p) return null;
-  const st = STATUS_MAP[p.status];
   const rm = ROOMS.find(r => r.key === p.room) || ROOMS[0];
   const nl = neglect(p.lastActivity, p.status);
   const done = p.tasks.filter(t => t.done).length;
   const d = daysSince(p.lastActivity);
 
-  const openUrl = (url) => {
+  const openUrl = (url: string | null) => {
+    if (!url) return;
     const full = url.startsWith("http") ? url : `https://${url}`;
-    window.open(full, "_blank", "noopener,noreferrer");
+    try {
+      const parsed = new URL(full);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return;
+      window.open(parsed.href, "_blank", "noopener,noreferrer");
+    } catch { /* invalid URL */ }
   };
 
   const submitTask = () => {
@@ -46,7 +72,7 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
       const suggestions = await suggestTasks(p);
       suggestions.forEach(text => onAddTask(p.id, text));
     } catch (e) {
-      setAiError(e.message);
+      setAiError((e as Error).message);
     } finally {
       setAiTaskLoading(false);
     }
@@ -57,45 +83,40 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
     try {
       const result = await generateDescription(p);
       setDesc(result);
-      save("description", result);
     } catch (e) {
-      setAiError(e.message);
+      setAiError((e as Error).message);
     } finally {
       setAiDescLoading(false);
     }
   };
 
-  const save = (field, val) => onUpdate(p.id, { [field]: val || null });
-
-  const PRIORITY_COLORS = { high: "#ef4444", medium: "#facc15", low: "#4ade80" };
-  const pc = PRIORITY_COLORS[p.priority] || "#555";
-
   const duration = p.startDate ? (() => {
     const start = new Date(p.startDate);
     const end = p.endDate ? new Date(p.endDate) : new Date();
-    const months = Math.max(0, Math.round((end - start) / (1000 * 60 * 60 * 24 * 30)));
+    const months = Math.max(0, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30)));
     return months < 1 ? "< 1개월" : `${months}개월`;
   })() : null;
 
   return (
     <div style={{
       background: "#0c0c12", borderLeft: `2px solid ${rm.color}33`, padding: 12,
-      display: "flex", flexDirection: "column", gap: 8, height: "calc(100vh - 76px)", overflow: "auto",
+      display: "flex", flexDirection: "column", gap: 8, height: "calc(100vh - 80px)", overflow: "auto",
     }}>
-      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
             {p.featured && <span style={{ fontFamily: PF, fontSize: 5, color: "#facc15" }}>★</span>}
             <div style={{ fontFamily: PF, fontSize: 8, color: "#ddd", lineHeight: 1.8, wordBreak: "break-word" }}>{p.name}</div>
           </div>
-          <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontFamily: PF, fontSize: 4, color: st.color, background: st.color + "22", padding: "1px 4px" }}>{st.label}</span>
-            <span style={{ fontFamily: PF, fontSize: 4, color: pc, background: pc + "18", padding: "1px 4px" }}>{p.priority?.toUpperCase()}</span>
-            {duration && <span style={{ fontFamily: PF, fontSize: 4, color: "#555", padding: "1px 3px" }}>{duration}</span>}
-          </div>
+          {duration && <span style={{ fontFamily: PF, fontSize: 4, color: "#555" }}>{duration}</span>}
         </div>
         <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          {onClone && (
+            <button onClick={() => onClone(p)} title="프로젝트 복제" style={{
+              all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 6, color: "#555",
+              background: "#111118", border: "1px solid #1e1e28", padding: "2px 5px",
+            }}>⊕</button>
+          )}
           <button onClick={() => onUpdate(p.id, { featured: !p.featured })} style={{
             all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 7,
             color: p.featured ? "#facc15" : "#333",
@@ -104,88 +125,118 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
         </div>
       </div>
 
-      {/* Thumbnail */}
-      {p.thumbnail && (
-        <div style={{ borderRadius: 3, overflow: "hidden", border: "1px solid #1a1a28" }}>
-          <img src={p.thumbnail} alt={p.name} style={{ width: "100%", display: "block", maxHeight: 120, objectFit: "cover" }}
-            onError={e => e.target.style.display = "none"} />
+      <div>
+        <div style={{ fontFamily: PF, fontSize: 4, color: "#555", marginBottom: 3 }}>STATUS</div>
+        <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+          {(Object.entries(STATUS_MAP) as [ProjectStatus, { label: string; color: string }][]).map(([k, v]) => (
+            <button key={k} onClick={() => onUpdate(p.id, { status: k })} style={{
+              all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, padding: "2px 6px",
+              color: p.status === k ? "#000" : "#555",
+              background: p.status === k ? v.color : "#111118",
+              border: `1px solid ${p.status === k ? v.color : "#1e1e28"}`,
+            }}>{v.label}</button>
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* Thumbnail input */}
-      {!p.thumbnail && (
+      <div>
+        <div style={{ fontFamily: PF, fontSize: 4, color: "#555", marginBottom: 3 }}>PRIORITY</div>
+        <div style={{ display: "flex", gap: 2 }}>
+          {([["high", "HIGH", "#ef4444"], ["medium", "MED", "#facc15"], ["low", "LOW", "#4ade80"]] as [ProjectPriority, string, string][]).map(([k, l, c]) => (
+            <button key={k} onClick={() => onUpdate(p.id, { priority: k })} style={{
+              all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, padding: "2px 6px",
+              color: p.priority === k ? "#000" : "#555",
+              background: p.priority === k ? c : "#111118",
+              border: `1px solid ${p.priority === k ? c : "#1e1e28"}`,
+            }}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div style={{ fontFamily: PF, fontSize: 4, color: "#555", marginBottom: 3 }}>ROOM</div>
+        <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+          {ROOMS.map(r => (
+            <button key={r.key} onClick={() => onUpdate(p.id, { room: r.key })} style={{
+              all: "unset", cursor: "pointer", fontFamily: BF, fontSize: 10, padding: "1px 5px",
+              color: p.room === r.key ? "#000" : "#555",
+              background: p.room === r.key ? r.color : "#111118",
+              border: `1px solid ${p.room === r.key ? r.color : "#1e1e28"}`,
+            }}>{r.label.split(" ")[0]}</button>
+          ))}
+        </div>
+      </div>
+
+      {p.thumbnail ? (
+        <div style={{ position: "relative", borderRadius: 3, overflow: "hidden", border: "1px solid #1a1a28" }}>
+          <img src={p.thumbnail} alt={p.name} style={{ width: "100%", display: "block", maxHeight: 120, objectFit: "cover" }}
+            onError={e => (e.target as HTMLImageElement).style.display = "none"} />
+          <button onClick={() => onUpdate(p.id, { thumbnail: null })} style={{
+            all: "unset", cursor: "pointer", position: "absolute", top: 4, right: 4,
+            background: "rgba(0,0,0,.7)", color: "#ef4444", fontFamily: PF, fontSize: 6, padding: "2px 5px",
+          }}>✕</button>
+        </div>
+      ) : (
         <div>
           <div style={{ fontFamily: PF, fontSize: 4, color: "#333", marginBottom: 2 }}>THUMBNAIL URL</div>
           <div style={{ display: "flex", gap: 3 }}>
             <input value={thumb} onChange={e => setThumb(e.target.value)} placeholder="https://..."
+              onKeyDown={e => e.key === "Enter" && onUpdate(p.id, { thumbnail: thumb || null })}
               style={{ flex: 1, fontFamily: BF, fontSize: 10, color: "#666", background: "#0a0a10", border: "1px solid #1a1a22", padding: "2px 5px", outline: "none" }} />
-            <button onClick={() => save("thumbnail", thumb)}
+            <button onClick={() => onUpdate(p.id, { thumbnail: thumb || null })}
               style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#000", background: "#4ade8077", padding: "2px 4px" }}>SET</button>
           </div>
         </div>
       )}
 
-      {/* AI Error */}
       {aiError && (
         <div style={{ fontFamily: BF, fontSize: 10, color: "#ef4444", background: "#1a0808", border: "1px solid #ef444422", padding: "3px 6px" }}>{aiError}</div>
       )}
 
-      {/* Description */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
-          <div style={{ fontFamily: PF, fontSize: 4, color: "#555" }}>DESCRIPTION</div>
-          <div style={{ display: "flex", gap: 4 }}>
-            {isOpenAIConfigured && (
-              <button onClick={runGenerateDesc} disabled={aiDescLoading} style={{
-                all: "unset", cursor: aiDescLoading ? "default" : "pointer", fontFamily: PF, fontSize: 4,
-                color: "#000", background: aiDescLoading ? "#555" : "#facc15", padding: "1px 5px", opacity: aiDescLoading ? 0.7 : 1,
-              }}>{aiDescLoading ? "..." : "✨ AI"}</button>
-            )}
-            <button onClick={() => { if (editingDesc) save("description", desc); setEditingDesc(e => !e); }}
-              style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 5, color: editingDesc ? "#4ade80" : "#333" }}>
-              {editingDesc ? "SAVE" : "EDIT"}
-            </button>
-          </div>
+          <div style={{ fontFamily: PF, fontSize: 4, color: "#555" }}>DESCRIPTION <span style={{ color: "#2a2a38" }}>(자동저장)</span></div>
+          {isOpenAIConfigured && (
+            <button onClick={runGenerateDesc} disabled={aiDescLoading} style={{
+              all: "unset", cursor: aiDescLoading ? "default" : "pointer", fontFamily: PF, fontSize: 4,
+              color: "#000", background: aiDescLoading ? "#555" : "#facc15", padding: "1px 5px", opacity: aiDescLoading ? 0.7 : 1,
+            }}>{aiDescLoading ? "..." : "✨ AI"}</button>
+          )}
         </div>
-        {editingDesc ? (
-          <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3}
-            style={{ width: "100%", fontFamily: BF, fontSize: 10, color: "#aaa", background: "#0a0a10", border: "1px solid #4ade8033", padding: "4px 6px", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
-        ) : (
-          <div onClick={() => setEditingDesc(true)} style={{ fontFamily: BF, fontSize: 10, color: p.description ? "#888" : "#333", background: "#0a0a0c", border: "1px solid #1a1a1e", padding: "4px 6px", minHeight: 36, cursor: "text", borderRadius: 2 }}>
-            {p.description || "클릭해서 설명 추가..."}
-          </div>
-        )}
+        <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} maxLength={200}
+          placeholder="프로젝트 설명..."
+          style={{ width: "100%", fontFamily: BF, fontSize: 10, color: "#aaa", background: "#0a0a10", border: "1px solid #1a1a22", padding: "4px 6px", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
       </div>
 
-      {/* Neglect alert */}
       {nl > 0 && (
         <div style={{ background: nl === 2 ? "#1a0808" : "#1a1508", border: `1px solid ${nl === 2 ? "#ef4444" : "#f59e0b"}22`, padding: "4px 6px", fontFamily: PF, fontSize: 5, color: nl === 2 ? "#ef4444" : "#f59e0b" }}>
           {nl === 2 ? "🚨 7일+ 방치" : "⚠️ 3일+ 방치"} ({d}일 전)
         </div>
       )}
 
-      {/* Stack */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-        {p.stack?.map(s => (
-          <span key={s} style={{ fontFamily: PF, fontSize: 4, color: "#888", background: "#1a1a1e", padding: "1px 4px", border: "1px solid #222" }}>{s}</span>
-        ))}
-      </div>
+      {p.stack?.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+          {p.stack.map(s => (
+            <span key={s} style={{ fontFamily: PF, fontSize: 4, color: "#888", background: "#1a1a1e", padding: "1px 4px", border: "1px solid #222" }}>{s}</span>
+          ))}
+        </div>
+      )}
 
-      {/* Progress */}
       <div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: PF, fontSize: 4, color: "#555", marginBottom: 2 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: PF, fontSize: 4, color: "#555", marginBottom: 4 }}>
           <span>PROGRESS</span><span style={{ color: rm.color }}>{p.progress}%</span>
         </div>
-        <div style={{ height: 5, background: "#1a1a1e", border: "1px solid #1e1e28" }}>
+        <input type="range" min={0} max={100} value={p.progress}
+          onChange={e => onUpdate(p.id, { progress: Number(e.target.value) })}
+          style={{ width: "100%", accentColor: rm.color, cursor: "pointer" }}
+        />
+        <div style={{ height: 4, background: "#1a1a1e", border: "1px solid #1e1e28", marginTop: 2 }}>
           <div style={{ width: `${p.progress}%`, height: "100%", background: rm.color, transition: "width .3s", boxShadow: p.progress > 0 ? `0 0 6px ${rm.color}88` : "none" }} />
         </div>
       </div>
 
-      {/* Links section */}
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         <div style={{ fontFamily: PF, fontSize: 4, color: "#555" }}>LINKS</div>
-
-        {/* Live URL */}
         <div>
           <div style={{ display: "flex", gap: 3 }}>
             <input value={si} onChange={e => setSi(e.target.value)} placeholder="https://myapp.vercel.app"
@@ -205,14 +256,12 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
             </button>
           )}
         </div>
-
-        {/* GitHub URL */}
         <div>
           <div style={{ display: "flex", gap: 3 }}>
             <input value={gi} onChange={e => setGi(e.target.value)} placeholder="github.com/user/repo"
-              onKeyDown={e => e.key === "Enter" && save("githubUrl", gi)}
+              onKeyDown={e => e.key === "Enter" && onUpdate(p.id, { githubUrl: gi || null })}
               style={{ flex: 1, fontFamily: BF, fontSize: 10, color: "#ccc", background: "#0a0a10", border: "1px solid #1a1a22", padding: "3px 5px", outline: "none" }} />
-            <button onClick={() => save("githubUrl", gi)}
+            <button onClick={() => onUpdate(p.id, { githubUrl: gi || null })}
               style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#000", background: "#a78bfa", padding: "2px 4px" }}>GH</button>
           </div>
           {p.githubUrl && (
@@ -228,7 +277,6 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
         </div>
       </div>
 
-      {/* Date range */}
       <div style={{ display: "flex", gap: 5 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: PF, fontSize: 4, color: "#555", marginBottom: 2 }}>START</div>
@@ -242,7 +290,6 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
         </div>
       </div>
 
-      {/* Tasks */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: PF, fontSize: 4, color: "#555", marginBottom: 3 }}>
           <span>TASKS</span>
@@ -275,17 +322,30 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
         </div>
       </div>
 
-      {/* Meta */}
       <div style={{ fontFamily: PF, fontSize: 3, color: "#333", lineHeight: 1.8 }}>
-        ROOM: <span style={{ color: rm.color }}>{rm.label}</span><br />
         LAST: {p.lastActivity}
       </div>
 
-      {/* Delete */}
-      <button onClick={() => onDelete(p.id)} style={{
-        all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 6, color: "#ef4444",
-        background: "#120808", padding: "6px", textAlign: "center", marginTop: "auto", border: "1px solid #ef444422",
-      }}>DELETE PROJECT</button>
+      {confirmDelete ? (
+        <div style={{ marginTop: "auto", background: "#1a0808", border: "1px solid #ef444444", padding: "8px" }}>
+          <div style={{ fontFamily: BF, fontSize: 11, color: "#ef4444", marginBottom: 6, textAlign: "center" }}>정말 삭제할까요?</div>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button onClick={() => { onDelete(p.id); setConfirmDelete(false); }} style={{
+              all: "unset", cursor: "pointer", flex: 1, fontFamily: PF, fontSize: 5, color: "#fff",
+              background: "#ef4444", padding: "5px", textAlign: "center",
+            }}>삭제</button>
+            <button onClick={() => setConfirmDelete(false)} style={{
+              all: "unset", cursor: "pointer", flex: 1, fontFamily: PF, fontSize: 5, color: "#aaa",
+              background: "#1e1e28", padding: "5px", textAlign: "center", border: "1px solid #333",
+            }}>취소</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setConfirmDelete(true)} style={{
+          all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 6, color: "#ef4444",
+          background: "#120808", padding: "6px", textAlign: "center", marginTop: "auto", border: "1px solid #ef444422",
+        }}>DELETE PROJECT</button>
+      )}
     </div>
   );
 }

@@ -1,8 +1,13 @@
 import { useState } from "react";
 import { PF, BF, ROOMS } from "../data/constants";
 import { neglect, daysSince } from "../utils/helpers";
+import { useLogs } from "../contexts/LogsContext";
+import type { Project, AgentState, ServerStatsMap } from "../types";
 
-function ServerMonitor({ projects, serverStats }) {
+const UPTIME_POINTS = Array.from({ length: 36 }, (_, i) => `${i * 5},${1 + Math.random() * 10}`).join(" ");
+
+interface ServerMonitorProps { projects: Project[]; serverStats: ServerStatsMap; }
+function ServerMonitor({ projects, serverStats }: ServerMonitorProps) {
   const deployed = projects.filter(p => p.serverUrl);
   if (deployed.length === 0) return (
     <div style={{ background: "#090f09", border: "1px solid #4ade8022", borderRadius: 3, padding: 8 }}>
@@ -25,10 +30,10 @@ function ServerMonitor({ projects, serverStats }) {
       </div>
 
       {deployed.map(p => {
-        const s = serverStats[p.serverUrl] || { ping: 18, uptime: 99.9, status: "up" };
+        const s = serverStats[p.serverUrl!] || { ping: 18, uptime: 99.9, status: "up" as const };
         const isUp = s.status !== "down";
         const pingColor = s.ping < 50 ? "#4ade80" : s.ping < 150 ? "#facc15" : "#ef4444";
-        const domain = p.serverUrl.replace(/^https?:\/\//, "").slice(0, 22);
+        const domain = p.serverUrl!.replace(/^https?:\/\//, "").slice(0, 22);
         return (
           <div key={p.id} style={{
             display: "flex", alignItems: "center", gap: 5,
@@ -41,7 +46,7 @@ function ServerMonitor({ projects, serverStats }) {
               <div style={{ fontFamily: BF, fontSize: 10, color: "#555" }}>{p.name}</div>
             </div>
             <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={{ fontFamily: PF, fontSize: 4, color: pingColor }}>{s.real ? "" : "~"}{Math.round(s.ping)}ms</div>
+              <div style={{ fontFamily: PF, fontSize: 4, color: pingColor }}>{s.real ? "" : "~"}{Math.round(s.ping)}ms{!s.real && <span style={{ color: "#333", fontSize: 3 }}> est</span>}</div>
               <div style={{ fontFamily: PF, fontSize: 4, color: "#333" }}>{s.uptime?.toFixed(1)}%</div>
             </div>
           </div>
@@ -51,17 +56,15 @@ function ServerMonitor({ projects, serverStats }) {
       <div style={{ marginTop: 4, padding: "3px 4px", background: "#050d05", borderRadius: 2 }}>
         <div style={{ fontFamily: PF, fontSize: 4, color: "#4ade8055", marginBottom: 2 }}>24H UPTIME</div>
         <svg width="100%" height="14" viewBox="0 0 180 14" preserveAspectRatio="none">
-          <polyline
-            points={Array.from({ length: 36 }, (_, i) => `${i * 5},${1 + Math.random() * 10}`).join(" ")}
-            fill="none" stroke="#4ade80" strokeWidth="1" opacity=".4"
-          />
+          <polyline points={UPTIME_POINTS} fill="none" stroke="#4ade80" strokeWidth="1" opacity=".4" />
         </svg>
       </div>
     </div>
   );
 }
 
-function ProjectHealth({ projects }) {
+interface ProjectHealthProps { projects: Project[]; }
+function ProjectHealth({ projects }: ProjectHealthProps) {
   const active = projects.filter(p => p.status === "active" || p.status === "pivot");
   if (active.length === 0) return null;
   return (
@@ -88,8 +91,9 @@ function ProjectHealth({ projects }) {
   );
 }
 
-function AlertsPanel({ projects }) {
-  const alerts = [];
+interface AlertsPanelProps { projects: Project[]; }
+function AlertsPanel({ projects }: AlertsPanelProps) {
+  const alerts: { icon: string; title: string; msg: string; color: string }[] = [];
   projects.forEach(p => {
     const nl = neglect(p.lastActivity, p.status);
     if (nl === 2) alerts.push({ icon: "🚨", title: p.name, msg: `${daysSince(p.lastActivity)}일째 방치`, color: "#ef4444" });
@@ -126,7 +130,8 @@ function AlertsPanel({ projects }) {
   );
 }
 
-function AgentStatus({ agentState }) {
+interface AgentStatusProps { agentState: AgentState[]; }
+function AgentStatus({ agentState }: AgentStatusProps) {
   return (
     <div style={{ background: "#0e0e14", border: "1px solid #1e1e28", borderRadius: 3, padding: 8 }}>
       <div style={{ fontFamily: PF, fontSize: 6, color: "#f4a261", marginBottom: 5, letterSpacing: 1 }}>🤖 AI AGENTS</div>
@@ -151,7 +156,7 @@ function AgentStatus({ agentState }) {
   );
 }
 
-const LOG_TYPE_STYLE = {
+const LOG_TYPE_STYLE: Record<string, { bg: string; border: string; dot: string }> = {
   deploy:  { bg: "#081208", border: "#4ade8033", dot: "#4ade80" },
   alert:   { bg: "#120808", border: "#ef444430", dot: "#ef4444" },
   review:  { bg: "#08080e", border: "#60a5fa30", dot: "#60a5fa" },
@@ -159,7 +164,7 @@ const LOG_TYPE_STYLE = {
   default: { bg: "#0a0a0e", border: "#1a1a2a",   dot: "#555"    },
 };
 
-function getLogType(msg) {
+function getLogType(msg: string): string {
   if (msg.includes("배포") || msg.includes("서버") || msg.includes("등록")) return "deploy";
   if (msg.includes("방치") || msg.includes("긴급") || msg.includes("⚠")) return "alert";
   if (msg.includes("리뷰") || msg.includes("review")) return "review";
@@ -167,7 +172,8 @@ function getLogType(msg) {
   return "default";
 }
 
-function ActivityLog({ logs }) {
+interface ActivityLogProps { logs: import("../types").LogEntry[]; }
+function ActivityLog({ logs }: ActivityLogProps) {
   const [filter, setFilter] = useState("all");
   const types = ["all", "deploy", "alert", "review", "security"];
   const filtered = filter === "all" ? logs : logs.filter(l => getLogType(l.msg) === filter);
@@ -214,7 +220,14 @@ function ActivityLog({ logs }) {
   );
 }
 
-export default function LeftSidebar({ projects, agentState, logs, serverStats }) {
+interface LeftSidebarProps {
+  projects: Project[];
+  agentState: AgentState[];
+  serverStats: ServerStatsMap;
+}
+
+export default function LeftSidebar({ projects, agentState, serverStats }: LeftSidebarProps) {
+  const { logs } = useLogs();
   return (
     <div style={{
       width: 230, minWidth: 210, flexShrink: 0, padding: 8,

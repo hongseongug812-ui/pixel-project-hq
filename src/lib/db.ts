@@ -1,7 +1,8 @@
 import { supabase } from "./supabase";
+import type { Project, Task, ProjectStatus, ProjectPriority, RoomKey } from "../types";
 
 // ── 변환 유틸 ────────────────────────────────────────────────────────
-export const FIELD_MAP = {
+export const FIELD_MAP: Record<string, string> = {
   lastActivity: "last_activity",
   serverUrl:    "server_url",
   githubUrl:    "github_url",
@@ -19,29 +20,31 @@ export const FIELD_MAP = {
   room:         "room",
 };
 
-export function rowToProject(row) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function rowToProject(row: Record<string, any>): Project {
   return {
     id:           row.id,
     name:         row.name,
-    status:       row.status,
+    status:       row.status        as ProjectStatus,
     progress:     row.progress,
-    priority:     row.priority,
+    priority:     row.priority      as ProjectPriority,
     lastActivity: row.last_activity,
-    room:         row.room,
-    serverUrl:    row.server_url   ?? null,
-    githubUrl:    row.github_url   ?? null,
-    thumbnail:    row.thumbnail    ?? null,
-    description:  row.description  ?? null,
-    featured:     row.featured     ?? false,
-    startDate:    row.start_date   ?? null,
-    endDate:      row.end_date     ?? null,
-    stack:        row.stack        ?? [],
-    tasks:        row.tasks        ?? [],
+    room:         row.room          as RoomKey,
+    serverUrl:    row.server_url    ?? null,
+    githubUrl:    row.github_url    ?? null,
+    thumbnail:    row.thumbnail     ?? null,
+    description:  row.description   ?? null,
+    featured:     row.featured      ?? false,
+    startDate:    row.start_date    ?? null,
+    endDate:      row.end_date      ?? null,
+    stack:        row.stack         ?? [],
+    tasks:        (row.tasks        ?? []) as Task[],
   };
 }
 
-function projectToRow(p, userId) {
-  const row = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function projectToRow(p: Partial<Project>, userId?: string): Record<string, any> {
+  const row: Record<string, unknown> = {
     name:          p.name,
     status:        p.status        ?? "active",
     progress:      p.progress      ?? 0,
@@ -62,9 +65,9 @@ function projectToRow(p, userId) {
   return row;
 }
 
-function fieldsToRow(fields) {
-  const row = {};
-  Object.entries(fields).forEach(([k, v]) => {
+function fieldsToRow(fields: Partial<Project>): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  (Object.entries(fields) as [string, unknown][]).forEach(([k, v]) => {
     const col = FIELD_MAP[k];
     if (col) row[col] = v ?? null;
   });
@@ -72,17 +75,20 @@ function fieldsToRow(fields) {
 }
 
 // ── CRUD ─────────────────────────────────────────────────────────────
-export async function fetchProjects(userId) {
+export async function fetchProjects(userId: string): Promise<Project[]> {
+  if (!supabase) throw new Error("Supabase not configured");
   const { data, error } = await supabase
     .from("projects")
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data.map(rowToProject);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map(rowToProject);
 }
 
-export async function createProject(project, userId) {
+export async function createProject(project: Partial<Project>, userId: string): Promise<Project> {
+  if (!supabase) throw new Error("Supabase not configured");
   const { data, error } = await supabase
     .from("projects")
     .insert(projectToRow(project, userId))
@@ -92,7 +98,8 @@ export async function createProject(project, userId) {
   return rowToProject(data);
 }
 
-export async function updateProject(id, fields) {
+export async function updateProject(id: string | number, fields: Partial<Project>): Promise<Project> {
+  if (!supabase) throw new Error("Supabase not configured");
   const { data, error } = await supabase
     .from("projects")
     .update(fieldsToRow(fields))
@@ -103,18 +110,20 @@ export async function updateProject(id, fields) {
   return rowToProject(data);
 }
 
-export async function deleteProject(id) {
+export async function deleteProject(id: string | number): Promise<void> {
+  if (!supabase) throw new Error("Supabase not configured");
   const { error } = await supabase.from("projects").delete().eq("id", id);
   if (error) throw error;
 }
 
 // ── localStorage 데이터 Supabase로 마이그레이션 ─────────────────────
-export async function migrateFromLocalStorage(userId) {
+export async function migrateFromLocalStorage(userId: string): Promise<number> {
   try {
     const raw = localStorage.getItem("phq6");
     if (!raw) return 0;
-    const projects = JSON.parse(raw);
+    const projects: Partial<Project>[] = JSON.parse(raw);
     if (!projects.length) return 0;
+    if (!supabase) return 0;
 
     const rows = projects.map(p => projectToRow(p, userId));
     const { error } = await supabase.from("projects").insert(rows);

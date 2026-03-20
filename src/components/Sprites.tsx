@@ -1,6 +1,8 @@
 // ═══ All SVG pixel art sprites for the office ═══
+import type { Agent, Project } from "../types";
 
-export function Monitor({ x, y, sc = "#3a6a8a", on = true, progress = 0, serverUrl = null }) {
+interface MonitorProps { x: number; y: number; sc?: string; on?: boolean; progress?: number; serverUrl?: string | null; }
+export function Monitor({ x, y, sc = "#3a6a8a", on = true, progress = 0, serverUrl = null }: MonitorProps) {
   const progW = Math.round(20 * Math.max(0, Math.min(100, progress)) / 100);
   return (
     <g transform={`translate(${x},${y})`}>
@@ -10,13 +12,11 @@ export function Monitor({ x, y, sc = "#3a6a8a", on = true, progress = 0, serverU
       {on && (
         <>
           {serverUrl ? (
-            // Server mode: show blinking cursor + status lines
             <>
               <rect x="4" y="3" width="6" height="1" fill={sc} opacity=".6" />
               <rect x="4" y="5" width="12" height="1" fill={sc} opacity=".3" />
               <rect x="4" y="7" width="9" height="1" fill={sc} opacity=".4" />
               <rect x="4" y="9" width="14" height="1" fill={sc} opacity=".2" />
-              {/* Blinking cursor */}
               <rect x="4" y="11" width="2" height="1" fill={sc} opacity=".9">
                 <animate attributeName="opacity" values="0.9;0;0.9" dur="1s" repeatCount="indefinite" />
               </rect>
@@ -29,10 +29,8 @@ export function Monitor({ x, y, sc = "#3a6a8a", on = true, progress = 0, serverU
               <rect x="4" y="10" width="12" height="1" fill={sc} opacity=".3" />
             </>
           )}
-          {/* Progress bar at screen bottom */}
           <rect x="2" y="12" width="20" height="1.5" fill="#0a0a0f" />
           {progW > 0 && <rect x="2" y="12" width={progW} height="1.5" fill={sc} opacity=".8" />}
-          {/* Screen glow */}
           <rect x="2" y="2" width="20" height="12" fill={sc} opacity=".05" />
         </>
       )}
@@ -42,7 +40,8 @@ export function Monitor({ x, y, sc = "#3a6a8a", on = true, progress = 0, serverU
   );
 }
 
-export function Desk({ x, y, w = 36 }) {
+interface DeskProps { x: number; y: number; w?: number; }
+export function Desk({ x, y, w = 36 }: DeskProps) {
   return (
     <g transform={`translate(${x},${y})`}>
       <rect x="0" y="0" width={w} height="5" rx="1" fill="#8a6a20" />
@@ -55,7 +54,8 @@ export function Desk({ x, y, w = 36 }) {
   );
 }
 
-export function Chair({ x, y }) {
+interface ChairProps { x: number; y: number; }
+export function Chair({ x, y }: ChairProps) {
   return (
     <g transform={`translate(${x},${y})`}>
       <rect x="2" y="0" width="12" height="6" rx="2" fill="#404050" />
@@ -69,7 +69,8 @@ export function Chair({ x, y }) {
   );
 }
 
-export function Plant({ x, y, big = false }) {
+interface PlantProps { x: number; y: number; big?: boolean; }
+export function Plant({ x, y, big = false }: PlantProps) {
   const s = big ? 1.4 : 1;
   return (
     <g transform={`translate(${x},${y}) scale(${s})`}>
@@ -83,8 +84,9 @@ export function Plant({ x, y, big = false }) {
   );
 }
 
-export function Bookshelf({ x, y }) {
-  const books = [
+interface BookshelfProps { x: number; y: number; }
+export function Bookshelf({ x, y }: BookshelfProps) {
+  const books: [number, number, string, number][] = [
     [2,2,"#e74c3c",3],[6,2,"#3498db",2.5],[10,2,"#2ecc71",3],[14,2,"#f39c12",2],
     [2,11,"#9b59b6",2.5],[6,11,"#1abc9c",3],[11,11,"#e67e22",2.5],[15,11,"#3498db",2],
     [2,20,"#2980b9",3],[6,20,"#c0392b",2],[10,20,"#27ae60",2.5],[14,20,"#8e44ad",3],
@@ -102,7 +104,8 @@ export function Bookshelf({ x, y }) {
   );
 }
 
-export function ServerRack({ x, y, active = true }) {
+interface ServerRackProps { x: number; y: number; active?: boolean; }
+export function ServerRack({ x, y, active = true }: ServerRackProps) {
   return (
     <g transform={`translate(${x},${y})`}>
       <rect x="0" y="0" width="18" height="30" rx="1" fill="#1e1e28" />
@@ -117,15 +120,14 @@ export function ServerRack({ x, y, active = true }) {
           <rect x="8" y={ry + 3} width="4" height="1" fill="#1e1e28" />
         </g>
       ))}
-      {/* Side vent lines */}
       <rect x="1" y="0" width="1" height="30" fill="#ffffff" opacity=".02" />
     </g>
   );
 }
 
-// Special server node for deployed project in server room
-export function ServerNode({ x, y, proj, isSel, roomColor, onSelect }) {
-  const STATUS_COLORS = { active:"#4ade80", pivot:"#facc15", complete:"#60a5fa", paused:"#a78bfa" };
+interface ServerNodeProps { x: number; y: number; proj: Project; isSel: boolean; roomColor: string; onSelect: (id: number | string) => void; }
+export function ServerNode({ x, y, proj, isSel, roomColor, onSelect }: ServerNodeProps) {
+  const STATUS_COLORS: Record<string, string> = { active:"#4ade80", pivot:"#facc15", complete:"#60a5fa", paused:"#a78bfa" };
   const sc = STATUS_COLORS[proj.status] || "#4ade80";
   const progW = Math.round(32 * Math.max(0, Math.min(100, proj.progress)) / 100);
   const domain = (proj.serverUrl || "").replace(/^https?:\/\//, "").slice(0, 12);
@@ -133,16 +135,10 @@ export function ServerNode({ x, y, proj, isSel, roomColor, onSelect }) {
   return (
     <g onClick={e => { e.stopPropagation(); onSelect(proj.id); }} style={{ cursor: "pointer" }}>
       {isSel && <rect x={x - 3} y={y - 14} width="44" height="36" fill={roomColor} opacity=".18" rx="2" />}
-
-      {/* Server chassis */}
       <rect x={x} y={y - 12} width="38" height="26" rx="1" fill="#14141e" stroke={sc} strokeWidth="0.6" />
       <rect x={x + 1} y={y - 11} width="36" height="6" fill="#0a0a12" />
-
-      {/* Drive bay slots */}
       <rect x={x + 2} y={y - 10} width="18" height="4" rx="0.5" fill="#0e0e18" />
       <rect x={x + 22} y={y - 10} width="14" height="4" rx="0.5" fill="#0e0e18" />
-
-      {/* Status LEDs */}
       <circle cx={x + 4} cy={y - 8} r="1.2" fill="#4ade80">
         <animate attributeName="opacity" values="1;0.3;1" dur="2.1s" repeatCount="indefinite" />
       </circle>
@@ -150,24 +146,14 @@ export function ServerNode({ x, y, proj, isSel, roomColor, onSelect }) {
         {proj.priority === "high" && <animate attributeName="opacity" values="1;0.2;1" dur="0.8s" repeatCount="indefinite" />}
       </circle>
       <circle cx={x + 12} cy={y - 8} r="1.2" fill={sc} opacity=".8" />
-
-      {/* Fan icon (decorative) */}
       <circle cx={x + 33} cy={y - 8} r="2.5" fill="#111" stroke="#222" strokeWidth=".5" />
       <circle cx={x + 33} cy={y - 8} r="1" fill="#1a1a24" />
-
-      {/* Middle section */}
       <rect x={x + 1} y={y - 3} width="36" height="1" fill="#1a1a28" />
-
-      {/* Domain text */}
       <text x={x + 2} y={y + 4} fill={sc} fontSize="3" fontFamily="'Press Start 2P',monospace" opacity=".8">
         {domain}
       </text>
-
-      {/* Progress bar */}
       <rect x={x + 1} y={y + 8} width="36" height="2" fill="#0a0a10" />
       {progW > 0 && <rect x={x + 1} y={y + 8} width={progW} height="2" fill={sc} opacity=".6" />}
-
-      {/* Project name */}
       <text x={x + 2} y={y + 14} fill="#333" fontSize="3" fontFamily="'Press Start 2P',monospace">
         {(proj.name || "").slice(0, 10)}
       </text>
@@ -175,7 +161,8 @@ export function ServerNode({ x, y, proj, isSel, roomColor, onSelect }) {
   );
 }
 
-export function Whiteboard({ x, y, w = 32 }) {
+interface WhiteboardProps { x: number; y: number; w?: number; }
+export function Whiteboard({ x, y, w = 32 }: WhiteboardProps) {
   return (
     <g transform={`translate(${x},${y})`}>
       <rect x="0" y="0" width={w} height="22" rx="1" fill="#e8e8e8" />
@@ -189,7 +176,8 @@ export function Whiteboard({ x, y, w = 32 }) {
   );
 }
 
-export function WaterCooler({ x, y }) {
+interface WaterCoolerProps { x: number; y: number; }
+export function WaterCooler({ x, y }: WaterCoolerProps) {
   return (
     <g transform={`translate(${x},${y})`}>
       <rect x="3" y="10" width="10" height="14" rx="1" fill="#ccc" />
@@ -200,7 +188,8 @@ export function WaterCooler({ x, y }) {
   );
 }
 
-export function Sofa({ x, y, color = "#6a4a7a" }) {
+interface SofaProps { x: number; y: number; color?: string; }
+export function Sofa({ x, y, color = "#6a4a7a" }: SofaProps) {
   return (
     <g transform={`translate(${x},${y})`}>
       <rect x="0" y="4" width="36" height="14" rx="3" fill={color} />
@@ -213,7 +202,8 @@ export function Sofa({ x, y, color = "#6a4a7a" }) {
   );
 }
 
-export function MeetingTable({ x, y }) {
+interface MeetingTableProps { x: number; y: number; }
+export function MeetingTable({ x, y }: MeetingTableProps) {
   return (
     <g transform={`translate(${x},${y})`}>
       <ellipse cx="30" cy="14" rx="28" ry="12" fill="#5a3a18" />
@@ -224,7 +214,8 @@ export function MeetingTable({ x, y }) {
   );
 }
 
-export function Clock({ x, y }) {
+interface ClockProps { x: number; y: number; }
+export function Clock({ x, y }: ClockProps) {
   return (
     <g transform={`translate(${x},${y})`}>
       <circle cx="6" cy="6" r="6" fill="#eee" />
@@ -236,7 +227,8 @@ export function Clock({ x, y }) {
   );
 }
 
-export function Printer({ x, y }) {
+interface PrinterProps { x: number; y: number; }
+export function Printer({ x, y }: PrinterProps) {
   return (
     <g transform={`translate(${x},${y})`}>
       <rect x="0" y="4" width="16" height="10" rx="1" fill="#ddd" />
@@ -247,7 +239,8 @@ export function Printer({ x, y }) {
   );
 }
 
-export function Coffee({ x, y }) {
+interface CoffeeProps { x: number; y: number; }
+export function Coffee({ x, y }: CoffeeProps) {
   return (
     <g transform={`translate(${x},${y})`}>
       <rect x="1" y="4" width="7" height="6" rx="1" fill="#e8e0d0" />
@@ -257,7 +250,8 @@ export function Coffee({ x, y }) {
   );
 }
 
-export function Character({ agent, x, y, frame = 0, dir = 1 }) {
+interface CharacterProps { agent: Agent; x: number; y: number; frame?: number; dir?: number; }
+export function Character({ agent, x, y, frame = 0, dir = 1 }: CharacterProps) {
   const lo = frame % 2;
   return (
     <g transform={`translate(${x},${y})${dir < 0 ? " scale(-1,1)" : ""}`}

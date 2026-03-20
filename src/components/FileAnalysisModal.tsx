@@ -1,24 +1,34 @@
 import { useState } from "react";
 import { PF, BF, ROOMS, STATUS_MAP } from "../data/constants";
 import { analyzeProjectWithAI, isOpenAIConfigured } from "../lib/openai";
+import type { Project, ProjectStatus, ProjectPriority, RoomKey, Task } from "../types";
+import type { FileAnalysisResult } from "../utils/helpers";
 
-export default function FileAnalysisModal({ analysis, filename, rawContent, onConfirm, onClose }) {
+interface FileAnalysisModalProps {
+  analysis: FileAnalysisResult;
+  filename: string;
+  rawContent: string;
+  onConfirm: (p: Project) => void;
+  onClose: () => void;
+}
+
+export default function FileAnalysisModal({ analysis, filename, rawContent, onConfirm, onClose }: FileAnalysisModalProps) {
   const [name,      setName]      = useState(analysis.name || "");
-  const [room,      setRoom]      = useState(analysis.room || "lab");
-  const [status,    setStatus]    = useState("active");
-  const [priority,  setPriority]  = useState(analysis.priority || "medium");
+  const [room,      setRoom]      = useState<RoomKey>((analysis.room as RoomKey) || "lab");
+  const [status,    setStatus]    = useState<ProjectStatus>("active");
+  const [priority,  setPriority]  = useState<ProjectPriority>((analysis.priority as ProjectPriority) || "medium");
   const [serverUrl, setServerUrl] = useState("");
-  const [tasks,     setTasks]     = useState(analysis.tasks || []);
+  const [tasks,     setTasks]     = useState<Task[]>(analysis.tasks || []);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError,   setAiError]   = useState("");
 
-  const inp = { width: "100%", fontFamily: BF, fontSize: 12, color: "#ccc", background: "#0c0c10", border: "1px solid #222", padding: "5px 7px", outline: "none", boxSizing: "border-box" };
-  const lbl = { fontFamily: PF, fontSize: 5, color: "#555", marginBottom: 3 };
+  const inp: React.CSSProperties = { width: "100%", fontFamily: BF, fontSize: 12, color: "#ccc", background: "#0c0c10", border: "1px solid #222", padding: "5px 7px", outline: "none", boxSizing: "border-box" };
+  const lbl: React.CSSProperties = { fontFamily: PF, fontSize: 5, color: "#555", marginBottom: 3 };
 
-  const toggleTask = (id) => setTasks(t => t.map(x => x.id === id ? { ...x, done: !x.done } : x));
-  const removeTask = (id) => setTasks(t => t.filter(x => x.id !== id));
+  const toggleTask = (id: string) => setTasks(t => t.map(x => x.id === id ? { ...x, done: !x.done } : x));
+  const removeTask = (id: string) => setTasks(t => t.filter(x => x.id !== id));
   const addTask    = () => setTasks(t => [...t, { id: `t${Date.now()}`, text: "", done: false }]);
-  const updateTask = (id, val) => setTasks(t => t.map(x => x.id === id ? { ...x, text: val } : x));
+  const updateTask = (id: string, val: string) => setTasks(t => t.map(x => x.id === id ? { ...x, text: val } : x));
 
   const runAI = async () => {
     if (!rawContent) return;
@@ -26,11 +36,11 @@ export default function FileAnalysisModal({ analysis, filename, rawContent, onCo
     try {
       const result = await analyzeProjectWithAI(rawContent, filename);
       if (result.name) setName(result.name);
-      if (result.room) setRoom(result.room);
-      if (result.priority) setPriority(result.priority);
+      if (result.room) setRoom(result.room as RoomKey);
+      if (result.priority) setPriority(result.priority as ProjectPriority);
       if (result.tasks?.length) setTasks(result.tasks.map((text, i) => ({ id: `t${Date.now()}${i}`, text, done: false })));
     } catch (e) {
-      setAiError(e.message);
+      setAiError((e as Error).message);
     } finally {
       setAiLoading(false);
     }
@@ -44,12 +54,14 @@ export default function FileAnalysisModal({ analysis, filename, rawContent, onCo
       progress: Math.round(finalTasks.filter(t => t.done).length / Math.max(finalTasks.length, 1) * 100),
       priority, lastActivity: new Date().toISOString().slice(0, 10),
       room, serverUrl: serverUrl.trim() || null,
+      githubUrl: null, thumbnail: null, description: null,
+      featured: false, startDate: null, endDate: null,
       tasks: finalTasks, stack: analysis.stack || [],
     });
     onClose();
   };
 
-  const PRIORITIES = [
+  const PRIORITIES: { k: ProjectPriority; l: string; c: string }[] = [
     { k: "high", l: "HIGH", c: "#ef4444" },
     { k: "medium", l: "MED",  c: "#facc15" },
     { k: "low",  l: "LOW",  c: "#4ade80" },
@@ -60,7 +72,6 @@ export default function FileAnalysisModal({ analysis, filename, rawContent, onCo
       onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ width: 360, background: "#0e0e12", border: "2px solid #4ade8044", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
 
-        {/* 헤더 */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontFamily: BF, fontSize: 14, color: "#4ade80", fontWeight: "bold" }}>📂 파일 분석</div>
           {isOpenAIConfigured && (
@@ -76,7 +87,6 @@ export default function FileAnalysisModal({ analysis, filename, rawContent, onCo
         </div>
         {aiError && <div style={{ fontFamily: BF, fontSize: 11, color: "#ef4444", background: "#1a0808", border: "1px solid #ef444422", padding: "4px 6px" }}>{aiError}</div>}
 
-        {/* 감지 결과 */}
         <div style={{ background: "#0a1a0a", border: "1px solid #4ade8022", padding: "6px 8px", borderRadius: 2 }}>
           <div style={{ fontFamily: PF, fontSize: 4, color: "#4ade80", marginBottom: 3 }}>DETECTED</div>
           <div style={{ fontFamily: BF, fontSize: 11, color: "#aaa" }}>{analysis.detected}</div>
@@ -90,18 +100,16 @@ export default function FileAnalysisModal({ analysis, filename, rawContent, onCo
           )}
         </div>
 
-        {/* 프로젝트 이름 */}
         <div>
           <div style={lbl}>PROJECT NAME</div>
           <input value={name} onChange={e => setName(e.target.value)} style={inp} autoFocus />
         </div>
 
-        {/* 상태 + 우선순위 */}
         <div style={{ display: "flex", gap: 10 }}>
           <div style={{ flex: 1 }}>
             <div style={lbl}>STATUS</div>
             <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-              {Object.entries(STATUS_MAP).map(([k, v]) => (
+              {(Object.entries(STATUS_MAP) as [ProjectStatus, { label: string; color: string }][]).map(([k, v]) => (
                 <button key={k} onClick={() => setStatus(k)} style={{
                   all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, padding: "2px 4px",
                   color: status === k ? "#000" : "#555",
@@ -126,7 +134,6 @@ export default function FileAnalysisModal({ analysis, filename, rawContent, onCo
           </div>
         </div>
 
-        {/* 방 */}
         <div>
           <div style={lbl}>ROOM</div>
           <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
@@ -141,13 +148,11 @@ export default function FileAnalysisModal({ analysis, filename, rawContent, onCo
           </div>
         </div>
 
-        {/* 서버 URL */}
         <div>
           <div style={lbl}>DEPLOYED URL (선택)</div>
           <input value={serverUrl} onChange={e => setServerUrl(e.target.value)} placeholder="https://myapp.vercel.app" style={inp} />
         </div>
 
-        {/* 할 일 목록 */}
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
             <div style={{ fontFamily: BF, fontSize: 12, color: "#facc15", fontWeight: "bold" }}>⚡ 추천 할 일 ({tasks.length})</div>
@@ -176,7 +181,6 @@ export default function FileAnalysisModal({ analysis, filename, rawContent, onCo
           </div>
         </div>
 
-        {/* 버튼 */}
         <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
           <button onClick={confirm} style={{ all: "unset", cursor: "pointer", flex: 1, fontFamily: BF, fontSize: 14, fontWeight: "bold", color: "#000", background: "#4ade80", padding: 7, textAlign: "center" }}>
             프로젝트 등록

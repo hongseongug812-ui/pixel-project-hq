@@ -1,7 +1,9 @@
 import { useState, useMemo } from "react";
 import { PF, BF, ROOMS, STATUS_MAP } from "../data/constants";
+import type { Project } from "../types";
 
-function Initials({ name, color, size = 100 }) {
+interface InitialsProps { name: string; color: string; size?: number; }
+function Initials({ name, color, size = 100 }: InitialsProps) {
   const letters = name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase().slice(0, 2);
   return (
     <div style={{ width: "100%", height: size, display: "flex", alignItems: "center", justifyContent: "center", background: `linear-gradient(135deg, ${color}22 0%, ${color}08 100%)`, borderBottom: `1px solid ${color}22`, position: "relative", overflow: "hidden" }}>
@@ -16,7 +18,8 @@ function Initials({ name, color, size = 100 }) {
   );
 }
 
-function PortfolioCard({ project: p, featured, onSelect }) {
+interface PortfolioCardProps { project: Project; featured: boolean; onSelect: (id: number | string) => void; }
+function PortfolioCard({ project: p, featured, onSelect }: PortfolioCardProps) {
   const [hover, setHover] = useState(false);
   const rm = ROOMS.find(r => r.key === p.room) || ROOMS[0];
   const st = STATUS_MAP[p.status];
@@ -27,12 +30,15 @@ function PortfolioCard({ project: p, featured, onSelect }) {
     if (!p.startDate) return null;
     const start = new Date(p.startDate);
     const end   = p.endDate ? new Date(p.endDate) : new Date();
-    const months = Math.max(0, Math.round((end - start) / (1000 * 60 * 60 * 24 * 30)));
+    const months = Math.max(0, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30)));
     if (months === 0) return "< 1mo";
     return months < 12 ? `${months}mo` : `${Math.round(months / 12)}yr`;
   })();
 
-  const openUrl = (url) => window.open(url?.startsWith("http") ? url : `https://${url}`, "_blank", "noopener,noreferrer");
+  const openUrl = (url: string | null) => {
+    if (!url) return;
+    window.open(url.startsWith("http") ? url : `https://${url}`, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div
@@ -52,7 +58,8 @@ function PortfolioCard({ project: p, featured, onSelect }) {
     >
       <div style={{ flexShrink: 0, width: featured ? 220 : "100%", position: "relative" }}>
         {p.thumbnail ? (
-          <img src={p.thumbnail} alt={p.name} style={{ width: "100%", height: featured ? "100%" : 100, objectFit: "cover", display: "block" }} onError={e => e.target.style.display = "none"} />
+          <img src={p.thumbnail} alt={p.name} style={{ width: "100%", height: featured ? "100%" : 100, objectFit: "cover", display: "block" }}
+            onError={e => (e.target as HTMLImageElement).style.display = "none"} />
         ) : null}
         <Initials name={p.name} color={rm.color} size={p.thumbnail ? 0 : 100} />
         {p.featured && (
@@ -65,7 +72,7 @@ function PortfolioCard({ project: p, featured, onSelect }) {
         <div>
           <div style={{ fontFamily: PF, fontSize: featured ? 9 : 7, color: "#ddd", lineHeight: 1.6, marginBottom: 3 }}>{p.name}</div>
           {p.description && (
-            <div style={{ fontFamily: BF, fontSize: 11, color: "#777", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{p.description}</div>
+            <div style={{ fontFamily: BF, fontSize: 11, color: "#777", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } as React.CSSProperties}>{p.description}</div>
           )}
         </div>
 
@@ -93,6 +100,7 @@ function PortfolioCard({ project: p, featured, onSelect }) {
               {p.startDate.slice(0, 7)}{p.endDate ? ` → ${p.endDate.slice(0, 7)}` : " → 진행중"}
             </span>
           )}
+          {duration && !p.startDate && <span style={{ fontFamily: BF, fontSize: 10, color: "#444" }}>{duration}</span>}
           <div style={{ flex: 1 }} />
           {p.serverUrl && (
             <button onClick={e => { e.stopPropagation(); openUrl(p.serverUrl); }} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#000", background: "#4ade80", padding: "2px 6px" }}>LIVE ↗</button>
@@ -106,7 +114,14 @@ function PortfolioCard({ project: p, featured, onSelect }) {
   );
 }
 
-export default function PortfolioView({ projects, onSelect, onExportJSON, onExportHTML }) {
+interface PortfolioViewProps {
+  projects: Project[];
+  onSelect: (id: number | string) => void;
+  onExportJSON: () => void;
+  onExportHTML: () => void;
+}
+
+export default function PortfolioView({ projects, onSelect, onExportJSON, onExportHTML }: PortfolioViewProps) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
 
@@ -120,8 +135,8 @@ export default function PortfolioView({ projects, onSelect, onExportJSON, onExpo
     return true;
   }), [projects, filter, search]);
 
-  const featured = filtered.filter(p => p.featured);
-  const rest     = filtered.filter(p => !p.featured);
+  const featuredProjects = filtered.filter(p => p.featured);
+  const rest             = filtered.filter(p => !p.featured);
   const stats = {
     total:  projects.length,
     live:   projects.filter(p => p.serverUrl).length,
@@ -131,16 +146,15 @@ export default function PortfolioView({ projects, onSelect, onExportJSON, onExpo
 
   return (
     <div style={{ flex: 1, padding: "16px 20px", overflow: "auto", background: "#0d0d12" }}>
-      {/* 헤더 */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontFamily: PF, fontSize: 12, color: "#facc15", letterSpacing: 3, marginBottom: 8, textShadow: "0 0 20px #facc1544" }}>PORTFOLIO</div>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14, alignItems: "flex-end" }}>
-          {[
+          {([
             ["PROJECTS", stats.total, "#60a5fa"],
             ["LIVE",     stats.live,  "#4ade80"],
             ["DONE",     stats.done,  "#a78bfa"],
             ["STACKS",   stats.stacks,"#f4a261"],
-          ].map(([l, v, c]) => (
+          ] as [string, number, string][]).map(([l, v, c]) => (
             <div key={l} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <span style={{ fontFamily: PF, fontSize: 4, color: "#444" }}>{l}</span>
               <span style={{ fontFamily: PF, fontSize: 14, color: c, textShadow: `0 0 10px ${c}66` }}>{v}</span>
@@ -176,17 +190,17 @@ export default function PortfolioView({ projects, onSelect, onExportJSON, onExpo
         <div style={{ textAlign: "center", padding: "60px 0", fontFamily: BF, fontSize: 18, color: "#333" }}>프로젝트 없음</div>
       ) : (
         <>
-          {featured.length > 0 && (
+          {featuredProjects.length > 0 && (
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontFamily: PF, fontSize: 5, color: "#facc1566", marginBottom: 10, letterSpacing: 2 }}>★ FEATURED</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-                {featured.map(p => <PortfolioCard key={p.id} project={p} featured={true} onSelect={onSelect} />)}
+                {featuredProjects.map(p => <PortfolioCard key={p.id} project={p} featured={true} onSelect={onSelect} />)}
               </div>
             </div>
           )}
           {rest.length > 0 && (
             <div>
-              {featured.length > 0 && <div style={{ fontFamily: PF, fontSize: 5, color: "#444", marginBottom: 10, letterSpacing: 2 }}>ALL PROJECTS</div>}
+              {featuredProjects.length > 0 && <div style={{ fontFamily: PF, fontSize: 5, color: "#444", marginBottom: 10, letterSpacing: 2 }}>ALL PROJECTS</div>}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
                 {rest.map(p => <PortfolioCard key={p.id} project={p} featured={false} onSelect={onSelect} />)}
               </div>

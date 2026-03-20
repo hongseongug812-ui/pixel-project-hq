@@ -2,9 +2,13 @@ import { useState } from "react";
 import { PF, BF } from "../data/constants";
 import { useAuth } from "../contexts/AuthContext";
 
-export default function AuthModal({ onMigrate }) {
+interface AuthModalProps {
+  onMigrate?: () => void;
+}
+
+export default function AuthModal({ onMigrate }: AuthModalProps) {
   const { signIn, signUp } = useAuth();
-  const [tab, setTab]         = useState("signin"); // "signin" | "signup"
+  const [tab, setTab]         = useState<"signin" | "signup">("signin");
   const [email, setEmail]     = useState("");
   const [pw, setPw]           = useState("");
   const [pw2, setPw2]         = useState("");
@@ -12,7 +16,7 @@ export default function AuthModal({ onMigrate }) {
   const [error, setError]     = useState("");
   const [done, setDone]       = useState("");
 
-  const inp = {
+  const inp: React.CSSProperties = {
     width: "100%", fontFamily: BF, fontSize: 12, color: "#ccc",
     background: "#080810", border: "1px solid #1e1e2e",
     padding: "6px 8px", outline: "none", boxSizing: "border-box",
@@ -40,7 +44,7 @@ export default function AuthModal({ onMigrate }) {
         onMigrate?.();
       }
     } catch (e) {
-      const msg = e.message || "오류가 발생했습니다.";
+      const msg = (e as Error).message || "오류가 발생했습니다.";
       if (msg.includes("Invalid login") || msg.includes("invalid_credentials")) setError("이메일 또는 비밀번호가 올바르지 않습니다.");
       else if (msg.includes("Email not confirmed") || msg.includes("email_not_confirmed")) setError("이메일 인증 필요 — 받은편지함을 확인하거나, Supabase 대시보드 → Auth → Providers → Email → Confirm email OFF");
       else if (msg.includes("already registered") || msg.includes("User already registered")) setError("이미 가입된 이메일입니다.");
@@ -56,7 +60,6 @@ export default function AuthModal({ onMigrate }) {
       display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000,
     }}>
       <div style={{ width: 320, display: "flex", flexDirection: "column", gap: 0 }}>
-        {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontFamily: PF, fontSize: 14, color: "#facc15", letterSpacing: 3, textShadow: "0 0 20px #facc1566", marginBottom: 6 }}>
             <span style={{ color: "#ef4444" }}>⬤</span> PIXEL HQ
@@ -64,9 +67,8 @@ export default function AuthModal({ onMigrate }) {
           <div style={{ fontFamily: PF, fontSize: 5, color: "#333", letterSpacing: 2 }}>PROJECT MANAGEMENT SYSTEM</div>
         </div>
 
-        {/* Tab */}
         <div style={{ display: "flex", marginBottom: 0, border: "1px solid #1a1a28" }}>
-          {[["signin", "로그인"], ["signup", "회원가입"]].map(([v, l]) => (
+          {([["signin", "로그인"], ["signup", "회원가입"]] as const).map(([v, l]) => (
             <button key={v} onClick={() => { setTab(v); setError(""); setDone(""); }} style={{
               all: "unset", cursor: "pointer", flex: 1, textAlign: "center",
               fontFamily: BF, fontSize: 14, fontWeight: "bold", padding: "8px 0",
@@ -76,7 +78,6 @@ export default function AuthModal({ onMigrate }) {
           ))}
         </div>
 
-        {/* Form */}
         <div style={{ background: "#0e0e16", border: "1px solid #1a1a28", borderTop: "none", padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
           <div>
             <div style={{ fontFamily: PF, fontSize: 5, color: "#555", marginBottom: 3 }}>EMAIL</div>
@@ -114,10 +115,10 @@ export default function AuthModal({ onMigrate }) {
 
           <button onClick={submit} disabled={loading} style={{
             all: "unset", cursor: loading ? "default" : "pointer",
-            fontFamily: PF, fontSize: 6, color: "#000",
+            fontFamily: BF, fontSize: 15, fontWeight: "bold", color: "#000",
             background: loading ? "#2a6a40" : "#4ade80",
             padding: "9px 0", textAlign: "center", marginTop: 4,
-            opacity: loading ? 0.7 : 1, fontFamily: BF, fontSize: 15, fontWeight: "bold",
+            opacity: loading ? 0.7 : 1,
           }}>
             {loading ? "처리 중..." : tab === "signin" ? "로그인" : "가입하기"}
           </button>

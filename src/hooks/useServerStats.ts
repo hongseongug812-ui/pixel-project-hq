@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import type { Project, ServerStat, ServerStatsMap } from "../types";
 
-// 실제 서버 헬스체크 (no-cors, 타임아웃 5초)
-async function pingServer(url) {
+async function pingServer(url: string): Promise<{ ping: number; status: "up" | "down" }> {
   const full = url.startsWith("http") ? url : `https://${url}`;
   const start = Date.now();
   try {
@@ -15,22 +15,21 @@ async function pingServer(url) {
   }
 }
 
-export function useServerStats(projects, tick) {
-  const [serverStats, setServerStats] = useState({});
-  const checkedRef = useRef(new Set());
+export function useServerStats(projects: Project[], tick: number) {
+  const [serverStats, setServerStats] = useState<ServerStatsMap>({});
+  const checkedRef = useRef<Set<string>>(new Set());
 
-  // 배포 URL이 새로 추가될 때 실제 핑 체크
   useEffect(() => {
     const deployed = projects.filter(p => p.serverUrl);
     deployed.forEach(async (p) => {
-      if (checkedRef.current.has(p.serverUrl)) return;
+      if (!p.serverUrl || checkedRef.current.has(p.serverUrl)) return;
       checkedRef.current.add(p.serverUrl);
       const result = await pingServer(p.serverUrl);
       setServerStats(prev => ({
         ...prev,
-        [p.serverUrl]: {
-          ping: result.ping < 999 ? result.ping : prev[p.serverUrl]?.ping ?? 30,
-          uptime: result.status === "up" ? 99.9 : Math.max(0, (prev[p.serverUrl]?.uptime ?? 99.9) - 0.5),
+        [p.serverUrl!]: {
+          ping: result.ping < 999 ? result.ping : prev[p.serverUrl!]?.ping ?? 30,
+          uptime: result.status === "up" ? 99.9 : Math.max(0, (prev[p.serverUrl!]?.uptime ?? 99.9) - 0.5),
           status: result.status,
           lastCheck: new Date().toLocaleTimeString("ko-KR"),
           real: true,
@@ -39,13 +38,11 @@ export function useServerStats(projects, tick) {
     });
   }, [projects]);
 
-  // 2분마다 재핑
   useEffect(() => {
     if (tick % 200 !== 0 || tick === 0) return;
-    checkedRef.current.clear(); // 강제 재체크
+    checkedRef.current.clear();
   }, [tick]);
 
-  // 소폭 시뮬레이션 (실제 핑 사이 간격 메우기)
   useEffect(() => {
     if (tick % 20 !== 0) return;
     const deployed = projects.filter(p => p.serverUrl);
@@ -53,12 +50,14 @@ export function useServerStats(projects, tick) {
     setServerStats(prev => {
       const next = { ...prev };
       deployed.forEach(p => {
-        const ex = next[p.serverUrl];
+        if (!p.serverUrl) return;
+        const ex: ServerStat | undefined = next[p.serverUrl];
         if (!ex || ex.status === "down") return;
         next[p.serverUrl] = {
           ...ex,
           ping: Math.max(5, Math.min(500, ex.ping + (Math.random() - 0.48) * 5)),
           uptime: Math.min(100, Math.max(95, ex.uptime + (Math.random() - 0.5) * 0.02)),
+          simulated: !ex.real,
         };
       });
       return next;

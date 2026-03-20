@@ -1,8 +1,11 @@
-import { ROOMS, STATUS_MAP, ROOM_MAX_DESKS, DESK_SLOTS } from "../data/constants";
+import { useMemo } from "react";
+import { STATUS_MAP, ROOM_MAX_DESKS, DESK_SLOTS } from "../data/constants";
 import { neglect } from "../utils/helpers";
 import { Monitor, Desk, Chair, Plant, Bookshelf, ServerRack, Whiteboard, WaterCooler, Sofa, MeetingTable, Clock, Printer, Coffee, Character, ServerNode } from "./Sprites";
+import type { Room, Project, AgentState } from "../types";
 
-function RoomDecorations({ roomKey, w, h }) {
+interface RoomDecorationsProps { roomKey: string; w: number; h: number; }
+function RoomDecorations({ roomKey, w, h }: RoomDecorationsProps) {
   switch (roomKey) {
     case "lab": return <><Bookshelf x={w-28} y={16}/><Whiteboard x={14} y={14}/><Plant x={w-18} y={h-22}/><Coffee x={60} y={47}/></>;
     case "office": return <><Whiteboard x={16} y={14} w={40}/><Plant x={w-20} y={16} big/><Plant x={10} y={h-24}/><Printer x={w-26} y={h-22}/><Clock x={w/2+20} y={3}/><WaterCooler x={w-24} y={80}/><Coffee x={110} y={47}/><Coffee x={190} y={117}/></>;
@@ -15,13 +18,30 @@ function RoomDecorations({ roomKey, w, h }) {
   }
 }
 
-export default function OfficeRoom({ roomCfg, projects, agents, selectedId, onSelect }) {
+interface OfficeRoomProps {
+  roomCfg: Room;
+  projects: Project[];
+  agents: AgentState[];
+  selectedId: number | string | null;
+  onSelect: (id: number | string) => void;
+}
+
+export default function OfficeRoom({ roomCfg, projects, agents, selectedId, onSelect }: OfficeRoomProps) {
   const rm = roomCfg;
   const T = 10;
   const cols = Math.floor(rm.w / T), rows = Math.floor(rm.h / T);
   const max = ROOM_MAX_DESKS[rm.key] || 6;
   const slots = DESK_SLOTS[rm.key] || [];
   const isServerRoom = rm.key === "server";
+
+  const floorTiles = useMemo(() =>
+    Array.from({ length: rows }, (_, r) =>
+      Array.from({ length: cols }, (_, c) => (
+        <rect key={`${r}-${c}`} x={c * T} y={r * T} width={T} height={T}
+          fill={(r + c) % 2 === 0 ? rm.floorA : rm.floorB} />
+      ))
+    ),
+  [rows, cols, rm.floorA, rm.floorB]);
 
   return (
     <div style={{ display: "inline-block", verticalAlign: "top" }}>
@@ -38,31 +58,21 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, onSe
           </filter>
         </defs>
 
-        {/* Floor tiles */}
-        {Array.from({ length: rows }, (_, r) =>
-          Array.from({ length: cols }, (_, c) => (
-            <rect key={`${r}-${c}`} x={c * T} y={r * T} width={T} height={T}
-              fill={(r + c) % 2 === 0 ? rm.floorA : rm.floorB} />
-          ))
-        )}
+        {floorTiles}
 
-        {/* Walls */}
         <rect x="0" y="0" width={rm.w} height="10" fill={rm.wallColor} />
         <rect x="0" y="10" width={rm.w} height="3" fill={rm.trim} />
         <rect x="0" y="0" width="6" height={rm.h} fill={rm.wallDark} />
         <rect x={rm.w - 6} y="0" width="6" height={rm.h} fill={rm.wallDark} />
         <rect x="0" y={rm.h - 3} width={rm.w} height="3" fill={rm.wallDark} opacity=".3" />
 
-        {/* Door */}
         <rect x={rm.w / 2 - 12} y="0" width="24" height="13" fill={rm.floorA} />
         <rect x={rm.w / 2 - 13} y="0" width="2" height="13" fill="#6a5020" />
         <rect x={rm.w / 2 + 11} y="0" width="2" height="13" fill="#6a5020" />
         <rect x={rm.w / 2 - 12} y="11" width="24" height="2" fill="#5a4018" />
 
-        {/* Room decorations */}
         <RoomDecorations roomKey={rm.key} w={rm.w} h={rm.h} />
 
-        {/* Ghost desks for empty slots */}
         {slots.slice(Math.min(projects.length, max), max).map((slot, i) => (
           <g key={`ghost-${i}`} opacity="0.55">
             <Chair x={slot.x + 10} y={slot.y + 20} />
@@ -71,7 +81,6 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, onSe
           </g>
         ))}
 
-        {/* Project desks */}
         {projects.slice(0, max).map((proj, i) => {
           const slot = slots[i];
           if (!slot) return null;
@@ -79,7 +88,6 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, onSe
           const nl = neglect(proj.lastActivity, proj.status);
           const isSel = proj.id === selectedId;
 
-          // Server room: deployed projects get special server node display
           if (isServerRoom && proj.serverUrl) {
             return (
               <ServerNode
@@ -104,7 +112,6 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, onSe
               )}
               <Chair x={slot.x + 10} y={slot.y + 20} />
               <Desk x={slot.x} y={slot.y} />
-              {/* Monitor with glow for active/deployed projects */}
               <g filter={proj.serverUrl ? `url(#glow-strong-${rm.key})` : (proj.status === "active" || proj.status === "pivot") ? `url(#glow-${rm.key})` : undefined}>
                 <Monitor
                   x={slot.x + 6} y={slot.y - 20}
@@ -134,13 +141,11 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, onSe
           </text>
         )}
 
-        {/* Walking agents */}
         {agents.map(a => (
           <Character key={a.id} agent={a} x={a.x} y={a.y} frame={a.frame} dir={a.dx > 0 ? 1 : -1} />
         ))}
       </svg>
 
-      {/* Room label bar */}
       <div style={{ background: rm.wallColor, padding: "4px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", borderRadius: "0 0 4px 4px" }}>
         <span style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 7, color: rm.color, letterSpacing: 1 }}>{rm.label}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

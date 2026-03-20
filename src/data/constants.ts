@@ -1,7 +1,9 @@
+import type { Agent, Room, RoomKey, StatusMap, DeskSlot } from "../types";
+
 export const PF = `"Press Start 2P",monospace`;
 export const BF = `"DotGothic16","Noto Sans KR",monospace`;
 
-export const AGENTS = [
+export const AGENTS: Agent[] = [
   { id:"a1",name:"Claude",role:"CTO",hair:"#c47832",skin:"#ffd5a0",shirt:"#d4845a",pants:"#445566",body:"#f4a261",emoji:"🧠",task:"코드 리뷰 & 설계" },
   { id:"a2",name:"Gemini",role:"보안관",hair:"#2a8ab0",skin:"#ffe0bd",shirt:"#3aa8d0",pants:"#445555",body:"#4cc9f0",emoji:"🛡️",task:"보안 스캔" },
   { id:"a3",name:"Codex",role:"시니어 개발",hair:"#45a862",skin:"#f5cba7",shirt:"#5dc878",pants:"#445544",body:"#80ed99",emoji:"⚡",task:"배포 & 버그픽스" },
@@ -10,7 +12,7 @@ export const AGENTS = [
   { id:"a6",name:"Copilot",role:"어시스턴트",hair:"#4a6abf",skin:"#fdd5b1",shirt:"#5e78e0",pants:"#444455",body:"#7b9bf0",emoji:"🤝",task:"페어 프로그래밍" },
 ];
 
-export const ROOMS = [
+export const ROOMS: Room[] = [
   { key:"lab",label:"연구실 R&D",w:320,h:220,color:"#4ade80",wallColor:"#2a4a3a",wallDark:"#1e3a2e",floorA:"#c8d8c8",floorB:"#bccabc",trim:"#3a6a4a" },
   { key:"office",label:"메인 사무실",w:380,h:260,color:"#60a5fa",wallColor:"#2a3a5a",wallDark:"#1e2e4a",floorA:"#d0c8d8",floorB:"#c4bcc8",trim:"#3a4a7a" },
   { key:"server",label:"서버실",w:260,h:200,color:"#ef4444",wallColor:"#4a2a2a",wallDark:"#3a1e1e",floorA:"#d8c8c8",floorB:"#ccbcbc",trim:"#6a3a3a" },
@@ -20,18 +22,18 @@ export const ROOMS = [
   { key:"storage",label:"창고",w:220,h:180,color:"#f59e0b",wallColor:"#4a3a1a",wallDark:"#3a2e14",floorA:"#d8d0c0",floorB:"#ccc4b4",trim:"#6a5220" },
 ];
 
-export const STATUS_MAP = {
-  active: { label:"ACTIVE", color:"#4ade80" },
-  pivot:  { label:"PIVOT",  color:"#facc15" },
-  complete:{ label:"DONE",  color:"#60a5fa" },
-  paused: { label:"PAUSED", color:"#a78bfa" },
+export const STATUS_MAP: StatusMap = {
+  active:  { label:"ACTIVE", color:"#4ade80" },
+  pivot:   { label:"PIVOT",  color:"#facc15" },
+  complete:{ label:"DONE",   color:"#60a5fa" },
+  paused:  { label:"PAUSED", color:"#a78bfa" },
 };
 
-export const ROOM_MAX_DESKS = {
+export const ROOM_MAX_DESKS: Record<RoomKey, number> = {
   lab:6, office:8, server:6, ceo:2, lounge:4, meeting:3, storage:4,
 };
 
-export const DESK_SLOTS = {
+export const DESK_SLOTS: Record<RoomKey, DeskSlot[]> = {
   lab:    [{x:30,y:45},{x:110,y:45},{x:190,y:45},{x:30,y:110},{x:110,y:110},{x:190,y:110}],
   office: [{x:30,y:45},{x:110,y:45},{x:190,y:45},{x:270,y:45},{x:30,y:115},{x:110,y:115},{x:190,y:115},{x:270,y:115}],
   server: [{x:70,y:35},{x:150,y:35},{x:70,y:85},{x:150,y:85},{x:70,y:135},{x:150,y:135}],
