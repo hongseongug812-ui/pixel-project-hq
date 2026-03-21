@@ -12,6 +12,10 @@
 
 ---
 
+![Pixel HQ Screenshot](docs/screenshot.png)
+
+---
+
 ## 스크린샷
 
 ```
