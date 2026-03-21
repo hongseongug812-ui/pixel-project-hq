@@ -407,6 +407,13 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
                 </button>
                 {taskAgent && <span title={taskAgent.name} style={{ fontSize: 9, flexShrink: 0 }}>{taskAgent.emoji}</span>}
                 {t.dueDate && <span style={{ fontFamily: PF, fontSize: 3, color: overdue ? "#ef4444" : "#444", flexShrink: 0 }}>{t.dueDate.slice(5)}</span>}
+                <button
+                  onClick={() => onUpdate(p.id, { tasks: p.tasks.filter(t2 => t2.id !== t.id) })}
+                  title="삭제"
+                  style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 5, color: "#333", padding: "0 2px", flexShrink: 0, lineHeight: 1 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#ef4444")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "#333")}
+                >✕</button>
               </div>
             </div>
           );

@@ -132,12 +132,13 @@ interface Props {
   selectedId: number | string | null;
   isMeetingActive: boolean;
   serverStats: ServerStatsMap;
+  searchQuery?: string;
   onSelect: (id: number | string) => void;
   onAgentClick: (id: string) => void;
 }
 
 export default function OfficePlan({
-  grouped, agentState, selectedId, isMeetingActive, serverStats, onSelect, onAgentClick,
+  grouped, agentState, selectedId, isMeetingActive, serverStats, searchQuery = "", onSelect, onAgentClick,
 }: Props) {
   const roomMap = new Map<string, Room>(ROOMS.map(r => [r.key, r]));
 
@@ -180,6 +181,7 @@ export default function OfficePlan({
                     selectedId={selectedId}
                     isMeetingActive={rm.key === "meeting" ? isMeetingActive : false}
                     serverStats={serverStats}
+                    searchQuery={searchQuery}
                     onSelect={onSelect}
                     onAgentClick={onAgentClick}
                   />

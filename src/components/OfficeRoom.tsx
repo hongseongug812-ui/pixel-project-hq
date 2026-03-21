@@ -26,6 +26,7 @@ interface OfficeRoomProps {
   selectedId: number | string | null;
   isMeetingActive?: boolean;
   serverStats: ServerStatsMap;
+  searchQuery?: string;
   onSelect: (id: number | string) => void;
   onAgentClick?: (agentId: string) => void;
 }
@@ -90,7 +91,7 @@ function AgentTooltip({ agent, x, y, roomW }: { agent: AgentState; x: number; y:
   );
 }
 
-export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMeetingActive, serverStats, onSelect, onAgentClick }: OfficeRoomProps) {
+export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMeetingActive, serverStats, searchQuery = "", onSelect, onAgentClick }: OfficeRoomProps) {
   const rm = roomCfg;
   const [hoveredAgentId, setHoveredAgentId] = useState<string | null>(null);
   const hoveredAgent = agents.find(a => a.id === hoveredAgentId) ?? null;
@@ -189,6 +190,12 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMe
           const st = STATUS_MAP[proj.status];
           const nl = neglect(proj.lastActivity, proj.status);
           const isSel = proj.id === selectedId;
+          const isMatch = searchQuery.length > 0 && (
+            proj.name.toLowerCase().includes(searchQuery) ||
+            (proj.description || "").toLowerCase().includes(searchQuery) ||
+            (proj.stack || []).some(s => s.toLowerCase().includes(searchQuery)) ||
+            proj.tasks.some(t => t.text.toLowerCase().includes(searchQuery))
+          );
 
           if (isServerRoom && proj.serverUrl) {
             return (
@@ -211,6 +218,7 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMe
           return (
             <g key={proj.id} onClick={e => { e.stopPropagation(); onSelect(proj.id); }} style={{ cursor: "pointer" }}>
               {isSel && <rect x={slot.x - 6} y={slot.y - 24} width="48" height="50" fill={rm.color} opacity=".15" rx="3" />}
+              {isMatch && <rect x={slot.x - 6} y={slot.y - 24} width="48" height="50" fill="none" stroke="#facc15" strokeWidth="1.5" rx="3" opacity="0.8"><animate attributeName="opacity" values="0.8;0.3;0.8" dur="1.2s" repeatCount="indefinite" /></rect>}
               {/* Health bar (아래) */}
               <rect x={slot.x} y={slot.y + 33} width={36} height={2} fill="#1a1a28" rx="1" />
               <rect x={slot.x} y={slot.y + 33} width={barW} height={2} fill={hc} rx="1" opacity="0.8" />

@@ -229,7 +229,17 @@ export default function App() {
           .phq-mobile-tabs { display: flex !important; }
           .phq-main { padding-bottom: 56px !important; }
           .phq-office-wrap { overflow-x: auto !important; }
+          .phq-mobile-sheet { display: flex !important; }
         }
+        .phq-mobile-sheet {
+          display: none;
+          position: fixed; bottom: 52px; left: 0; right: 0;
+          max-height: 70vh; background: #0a0a12;
+          border-top: 1px solid #facc1533;
+          z-index: 600; overflow-y: auto;
+          animation: slideUp 0.2s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .phq-mobile-tabs { display: none; }
       `}</style>
 
@@ -325,6 +335,7 @@ export default function App() {
                 selectedId={selId}
                 isMeetingActive={isMeetingActive}
                 serverStats={serverStats}
+                searchQuery={search.trim().toLowerCase()}
                 onSelect={(id: number | string) => setSelIdState(selId === id ? null : id)}
                 onAgentClick={(id: string) => setAgentChatId(prev => prev === id ? null : id)}
               />
@@ -344,14 +355,26 @@ export default function App() {
         )}
 
         {sel && viewMode === "god" && (
-          <div className="phq-detail" style={{ width: 265, flexShrink: 0 }}>
-            <DetailPanel project={sel} onClose={() => setSelIdState(null)}
-              onToggle={toggleTask} onDelete={handleDelete} onClone={cloneProject}
-              onSetServer={setSrv} onAddTask={addTask} onUpdate={updateProject}
-              agents={allAgents}
-              commits={commitMap[sel.id]}
-            />
-          </div>
+          <>
+            {/* Desktop: right sidebar */}
+            <div className="phq-detail" style={{ width: 265, flexShrink: 0 }}>
+              <DetailPanel project={sel} onClose={() => setSelIdState(null)}
+                onToggle={toggleTask} onDelete={handleDelete} onClone={cloneProject}
+                onSetServer={setSrv} onAddTask={addTask} onUpdate={updateProject}
+                agents={allAgents}
+                commits={commitMap[sel.id]}
+              />
+            </div>
+            {/* Mobile: slide-up sheet */}
+            <div className="phq-mobile-sheet">
+              <DetailPanel project={sel} onClose={() => setSelIdState(null)}
+                onToggle={toggleTask} onDelete={handleDelete} onClone={cloneProject}
+                onSetServer={setSrv} onAddTask={addTask} onUpdate={updateProject}
+                agents={allAgents}
+                commits={commitMap[sel.id]}
+              />
+            </div>
+          </>
         )}
       </div>
 

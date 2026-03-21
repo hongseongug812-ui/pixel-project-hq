@@ -1,8 +1,14 @@
 # Pixel HQ — AI Company God View Dashboard
 
-> 픽셀아트 스타일의 AI 회사 프로젝트 관리 툴. 탑뷰로 회사 전체를 내려다보며 AI 직원들이 실시간으로 프로젝트를 처리한다.
+> 픽셀아트 스타일의 AI 회사 프로젝트 관리 툴.
+> 탑뷰로 회사 전체를 내려다보며 AI 직원들이 실시간으로 프로젝트를 처리한다.
 
-**[▶ 라이브 데모](https://pixel-project-hq.vercel.app)** · 로그인 없이 체험 가능
+[![Tests](https://img.shields.io/badge/tests-79%20passing-4ade80?style=flat-square&logo=vitest)](./src)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3b82f6?style=flat-square&logo=typescript)](./tsconfig.json)
+[![Vercel](https://img.shields.io/badge/deployed-Vercel-000?style=flat-square&logo=vercel)](https://pixel-project-hq.vercel.app)
+[![License](https://img.shields.io/badge/license-MIT-a78bfa?style=flat-square)](./LICENSE)
+
+**[▶ 라이브 데모](https://pixel-project-hq.vercel.app)** — 로그인 없이 즉시 체험
 
 ---
 
