@@ -3,7 +3,26 @@ import { AGENTS, ROOMS } from "../data/constants";
 import { useLogs } from "../contexts/LogsContext";
 import { daysSince } from "../utils/helpers";
 import { loadMyAvatar } from "../components/MyPage";
+import { usePageVisible } from "./usePageVisible";
 import type { AgentState, Project, RoomKey } from "../types";
+
+// ── 상수 ────────────────────────────────────────────────────────────────
+const AGENT_TICK_MS         = 180;   // 캐릭터 이동 인터벌 (ms)
+const ROOM_CHANGE_EVERY     = 25;    // N 틱마다 방 이동 결정
+const MEETING_TICKS         = 35;    // 긴급 회의 지속 틱 수
+const MEETING_MIN_AGENTS    = 2;     // 회의 최소 소집 인원
+const MEETING_MAX_AGENTS    = 4;     // 회의 최대 소집 인원
+const CRISIS_NEGLECT_DAYS   = 5;     // 위기 판단 방치 기준 (일)
+const CRISIS_PENDING_TASKS  = 5;     // 위기 판단 미완료 태스크 기준 (개)
+// rank별 방 결정 확률
+const CTO_CEO_ROOM_PROB     = 0.6;
+const LEAD_MEETING_PROB     = 0.5;
+const SENIOR_OFFICE_PROB    = 0.7;
+const JUNIOR_LAB_PROB       = 0.5;
+const JUNIOR_OFFICE_PROB    = 0.75; // lab 이외 누적 확률
+const ASST_OFFICE_PROB      = 0.4;
+const ASST_LOUNGE_PROB      = 0.65; // office 이외 누적 확률
+const ASSIGNED_ROOM_PROB    = 0.8;  // 담당 프로젝트 방으로 이동할 확률
 
 const LOG_ACTIONS: Array<(p: { name: string }) => string> = [
   // 개발 작업
@@ -46,32 +65,31 @@ function pickRoom(agent: AgentState, task: string, assignedRoom?: RoomKey): Room
 
   // 계급별 기본 방
   if (agent.rank === "CEO") return "ceo";
-  if (agent.rank === "CTO") return Math.random() < 0.6 ? "ceo" : "office";
-  if (agent.rank === "Lead") return Math.random() < 0.5 ? "meeting" : "office";
-  if (agent.rank === "Senior") return Math.random() < 0.7 ? "office" : "lab";
+  if (agent.rank === "CTO") return Math.random() < CTO_CEO_ROOM_PROB ? "ceo" : "office";
+  if (agent.rank === "Lead") return Math.random() < LEAD_MEETING_PROB ? "meeting" : "office";
+  if (agent.rank === "Senior") return Math.random() < SENIOR_OFFICE_PROB ? "office" : "lab";
   if (agent.rank === "Junior") {
     const r = Math.random();
-    return r < 0.5 ? "lab" : r < 0.75 ? "office" : "lounge";
+    return r < JUNIOR_LAB_PROB ? "lab" : r < JUNIOR_OFFICE_PROB ? "office" : "lounge";
   }
   if (agent.rank === "Assistant") {
     const r = Math.random();
-    return r < 0.4 ? "office" : r < 0.65 ? "lounge" : "lab";
+    return r < ASST_OFFICE_PROB ? "office" : r < ASST_LOUNGE_PROB ? "lounge" : "lab";
   }
 
-  // 담당 프로젝트 방 (80% 확률)
-  if (assignedRoom && Math.random() < 0.8) return assignedRoom;
+  // 담당 프로젝트 방
+  if (assignedRoom && Math.random() < ASSIGNED_ROOM_PROB) return assignedRoom;
 
   // 완전 랜덤 fallback (모든 방 활용)
   const allRooms: RoomKey[] = ["lab", "office", "server", "ceo", "lounge", "meeting", "storage"];
   return allRooms[Math.floor(Math.random() * allRooms.length)];
 }
 
-// 위기 프로젝트 감지: 긴급 우선순위 + (5일이상 방치 or 미완료 태스크 5개 이상)
 function detectCrisisProject(projects: Project[]): boolean {
   return projects.some(p =>
     p.priority === "high" &&
     p.status !== "complete" &&
-    (daysSince(p.lastActivity) >= 5 || p.tasks.filter(t => !t.done).length >= 5)
+    (daysSince(p.lastActivity) >= CRISIS_NEGLECT_DAYS || p.tasks.filter(t => !t.done).length >= CRISIS_PENDING_TASKS)
   );
 }
 
@@ -82,7 +100,7 @@ function makeMyAgentState(): AgentState {
     aiModel: "GPT-4o mini", personality: "이 회사의 주인. 모든 프로젝트를 관리한다.",
     hair: av.bodyColor, skin: av.bodyColor, shirt: av.bodyColor, pants: av.bodyColor,
     body: av.bodyColor, emoji: av.emoji, task: "오피스 순찰 중",
-    room: "lounge" as RoomKey,
+    room: "lounge",
     x: 20 + Math.random() * 80, y: 50 + Math.random() * 60,
     frame: 0, dx: 0.4 + Math.random() * 0.4, currentTask: "오피스 순찰 중",
   };
@@ -90,6 +108,7 @@ function makeMyAgentState(): AgentState {
 
 export function useAgents(projects: Project[], isAIChatOpen = false) {
   const { pushLog } = useLogs();
+  const pageVisible = usePageVisible();
   const [agentState, setAgentState] = useState<AgentState[]>(() =>
     [...AGENTS.map((a, i) => ({
       ...a,
@@ -114,7 +133,7 @@ export function useAgents(projects: Project[], isAIChatOpen = false) {
     if (isAIChatOpen) {
       setIsMeetingActive(true);
       setAgentState(prev => prev.map((a, i) => ({
-        ...a, room: "meeting" as RoomKey,
+        ...a, room: "meeting",
         x: 20 + (i % 3) * 60 + Math.random() * 20,
         y: 50 + Math.floor(i / 3) * 40 + Math.random() * 15,
         currentTask: "AI 채팅 회의 중",
@@ -143,20 +162,27 @@ export function useAgents(projects: Project[], isAIChatOpen = false) {
     return () => window.removeEventListener("phq-avatar-updated", onAvatarUpdate);
   }, []);
 
-  // 180ms마다 캐릭터 이동
+  // 캐릭터 이동 — 탭 숨김 시 중단, 변경된 에이전트만 새 객체 생성
   useEffect(() => {
+    if (!pageVisible) return;
     const iv = setInterval(() => {
       setTick(t => t + 1);
-      setAgentState(prev => prev.map(a => {
-        const rm = ROOMS.find(r => r.key === a.room);
-        const maxX = rm ? rm.w - 30 : 160;
-        let nx = a.x + a.dx, nd = a.dx;
-        if (nx > maxX || nx < 15) { nd = -nd; nx = a.x + nd; }
-        return { ...a, x: nx, dx: nd, frame: a.frame + 1 };
-      }));
-    }, 180);
+      setAgentState(prev => {
+        let changed = false;
+        const next = prev.map(a => {
+          const rm = ROOMS.find(r => r.key === a.room);
+          const maxX = rm ? rm.w - 30 : 160;
+          let nx = a.x + a.dx, nd = a.dx;
+          if (nx > maxX || nx < 15) { nd = -nd; nx = a.x + nd; }
+          if (nx === a.x && nd === a.dx) return a; // 변화 없으면 동일 참조 유지
+          changed = true;
+          return { ...a, x: nx, dx: nd, frame: a.frame + 1 };
+        });
+        return changed ? next : prev; // 아무것도 안 바뀌면 리렌더 방지
+      });
+    }, AGENT_TICK_MS);
     return () => clearInterval(iv);
-  }, []);
+  }, [pageVisible]);
 
   // tick마다 회의 카운트다운 처리
   useEffect(() => {
@@ -174,30 +200,30 @@ export function useAgents(projects: Project[], isAIChatOpen = false) {
         const returnRoom = assignedProject
           ? (ROOMS.find(r => r.key === assignedProject.room) ?? ROOMS[0])
           : ROOMS[Math.floor(Math.random() * ROOMS.length)];
-        return { ...a, room: returnRoom.key as RoomKey, x: 20 + Math.random() * 80, y: 50 + Math.random() * 60, currentTask: AGENTS.find(ag => ag.id === a.id)?.task ?? a.task };
+        return { ...a, room: returnRoom.key, x: 20 + Math.random() * 80, y: 50 + Math.random() * 60, currentTask: AGENTS.find(ag => ag.id === a.id)?.task ?? a.task };
       }));
       pushLog("긴급 회의 종료 — 액션 플랜 수립됨", "✅", "#4ade80");
     }
   }, [tick]);
 
-  // 25틱마다: 방 이동 + 위기 감지 → 회의 소집
+  // N틱마다: 방 이동 + 위기 감지 → 회의 소집
   useEffect(() => {
-    if (tick % 25 !== 0 || tick === 0) return;
+    if (tick % ROOM_CHANGE_EVERY !== 0 || tick === 0) return;
 
     // 담당 프로젝트 → 방 맵 빌드
     const assignedRoomMap = new Map<string, RoomKey>();
     projects.forEach(p => {
-      if (p.assignedAgentId) assignedRoomMap.set(p.assignedAgentId, p.room as RoomKey);
+      if (p.assignedAgentId) assignedRoomMap.set(p.assignedAgentId, p.room);
     });
 
     // 위기 감지 → 회의 소집
     if (detectCrisisProject(projects) && !meetingRef.current.active) {
-      const shuffledIds = [...agentState].sort(() => Math.random() - 0.5).slice(0, 2 + Math.floor(Math.random() * 2)).map(a => a.id);
-      meetingRef.current = { active: true, ticksLeft: 35, agentIds: shuffledIds };
+      const shuffledIds = [...agentState].sort(() => Math.random() - 0.5).slice(0, MEETING_MIN_AGENTS + Math.floor(Math.random() * (MEETING_MAX_AGENTS - MEETING_MIN_AGENTS))).map(a => a.id);
+      meetingRef.current = { active: true, ticksLeft: MEETING_TICKS, agentIds: shuffledIds };
       setIsMeetingActive(true);
       setAgentState(prev => prev.map(a =>
         shuffledIds.includes(a.id)
-          ? { ...a, room: "meeting" as RoomKey, x: 30 + Math.random() * 60, y: 50 + Math.random() * 50, currentTask: "긴급 회의 중" }
+          ? { ...a, room: "meeting", x: 30 + Math.random() * 60, y: 50 + Math.random() * 50, currentTask: "긴급 회의 중" }
           : a
       ));
       pushLog("긴급 회의 소집 — 위기 프로젝트 대응", "📋", "#f472b6");
@@ -229,7 +255,7 @@ export function useAgents(projects: Project[], isAIChatOpen = false) {
       const roomKey = pickRoom(c[i], task, assignedRoomMap.get(c[i].id));
       const rm = ROOMS.find(r => r.key === roomKey) ?? ROOMS[0];
 
-      c[i] = { ...c[i], room: rm.key as RoomKey, x: 20 + Math.random() * 80, y: 50 + Math.random() * 60, currentTask: task };
+      c[i] = { ...c[i], room: rm.key, x: 20 + Math.random() * 80, y: 50 + Math.random() * 60, currentTask: task };
       pushLog(msg, c[i].emoji, c[i].body, c[i].name);
       return c;
     });

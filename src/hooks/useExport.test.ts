@@ -71,4 +71,33 @@ describe("useExport", () => {
     expect(blobs[0]).toContain("Test App");
     global.Blob = OrigBlob;
   });
+
+  it("exportHTML escapes XSS in project name", () => {
+    const xssProject: typeof mockProject = {
+      ...mockProject,
+      name: '<script>alert("xss")</script>',
+      description: '"><img src=x onerror=alert(1)>',
+      stack: ['<b>React</b>'],
+    };
+    const blobs: string[] = [];
+    const OrigBlob = global.Blob;
+    global.Blob = class extends OrigBlob {
+      constructor(parts: BlobPart[], opts?: BlobPropertyBag) {
+        super(parts, opts);
+        blobs.push(parts[0] as string);
+      }
+    } as typeof Blob;
+
+    const { result } = renderHook(() => useExport([xssProject], toast));
+    act(() => { result.current.exportHTML(); });
+
+    const html = blobs[0];
+    // Raw tags must not appear — only their escaped forms
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<img "); // img tag from description must be escaped
+    expect(html).toContain("&lt;script&gt;");
+    expect(html).toContain("&lt;img ");   // escaped form is present
+    expect(html).toContain("&lt;b&gt;React&lt;/b&gt;");
+    global.Blob = OrigBlob;
+  });
 });

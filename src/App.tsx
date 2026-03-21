@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { PF, BF } from "./data/constants";
 import { useAuth } from "./contexts/AuthContext";
 import { isConfigured, supabase } from "./lib/supabase";
@@ -21,25 +21,28 @@ import { useCompanyFeed } from "./hooks/useCompanyFeed";
 import { useCustomAgents } from "./hooks/useCustomAgents";
 import { useGitHub }      from "./hooks/useGitHub";
 
+// 항상 필요한 핵심 컴포넌트 — 즉시 로드
 import OfficePlan         from "./components/OfficePlan";
 import LeftSidebar        from "./components/LeftSidebar";
 import DetailPanel        from "./components/DetailPanel";
-import AddModal           from "./components/AddModal";
-import FileAnalysisModal  from "./components/FileAnalysisModal";
-import PortfolioView      from "./components/PortfolioView";
-import AuthModal          from "./components/AuthModal";
-import Toast              from "./components/Toast";
-import AIChat             from "./components/AIChat";
-import MyPage             from "./components/MyPage";
-import AgentChat          from "./components/AgentChat";
-import KanbanView         from "./components/KanbanView";
 import AppHeader          from "./components/AppHeader";
 import AppToolbar         from "./components/AppToolbar";
-import CompanyFeed        from "./components/CompanyFeed";
-import HireModal          from "./components/HireModal";
-import StatsView          from "./components/StatsView";
-import AlertSettingsModal from "./components/AlertSettingsModal";
-import CommandPalette     from "./components/CommandPalette";
+import Toast              from "./components/Toast";
+import AuthModal          from "./components/AuthModal";
+
+// 뷰/모달 — 필요할 때만 로드 (코드 스플리팅)
+const AIChat             = lazy(() => import("./components/AIChat"));
+const AgentChat          = lazy(() => import("./components/AgentChat"));
+const KanbanView         = lazy(() => import("./components/KanbanView"));
+const CompanyFeed        = lazy(() => import("./components/CompanyFeed"));
+const StatsView          = lazy(() => import("./components/StatsView"));
+const PortfolioView      = lazy(() => import("./components/PortfolioView"));
+const AddModal           = lazy(() => import("./components/AddModal"));
+const FileAnalysisModal  = lazy(() => import("./components/FileAnalysisModal"));
+const MyPage             = lazy(() => import("./components/MyPage"));
+const HireModal          = lazy(() => import("./components/HireModal"));
+const AlertSettingsModal = lazy(() => import("./components/AlertSettingsModal"));
+const CommandPalette     = lazy(() => import("./components/CommandPalette"));
 
 import type { Project } from "./types";
 import type { SortKey } from "./components/AppToolbar";
@@ -349,16 +352,22 @@ export default function App() {
             )}
           </div>
         ) : viewMode === "kanban" ? (
-          <KanbanView projects={projects} serverStats={serverStats} onSelect={id => { setSelIdState(id); setViewMode("god"); }} />
+          <Suspense fallback={null}>
+            <KanbanView projects={projects} serverStats={serverStats} onSelect={id => { setSelIdState(id); setViewMode("god"); }} />
+          </Suspense>
         ) : viewMode === "feed" ? (
-          <CompanyFeed
-            messages={feedMessages}
-            onPostAsMe={postAsMe}
-            onPostAnnouncement={postCEOAnnouncement}
-            onClear={clearFeed}
-          />
+          <Suspense fallback={null}>
+            <CompanyFeed
+              messages={feedMessages}
+              onPostAsMe={postAsMe}
+              onPostAnnouncement={postCEOAnnouncement}
+              onClear={clearFeed}
+            />
+          </Suspense>
         ) : (
-          <PortfolioView projects={projects} onSelect={id => { setSelIdState(id); setViewMode("god"); }} onExportJSON={exportJSON} onExportHTML={exportHTML} />
+          <Suspense fallback={null}>
+            <PortfolioView projects={projects} onSelect={id => { setSelIdState(id); setViewMode("god"); }} onExportJSON={exportJSON} onExportHTML={exportHTML} />
+          </Suspense>
         )}
 
         {sel && viewMode === "god" && (
@@ -385,19 +394,20 @@ export default function App() {
         )}
       </div>
 
-      {showPalette && <CommandPalette projects={projects} onSelect={id => { setSelIdState(id); setViewMode("god"); }} onClose={() => setShowPalette(false)} />}
-      {showAdd && <AddModal onAdd={addProject} onClose={() => setShowAdd(false)} />}
-      {fileAnalysis && (
-        <FileAnalysisModal analysis={fileAnalysis.analysis} filename={fileAnalysis.filename}
-          rawContent={fileAnalysis.rawContent} onConfirm={addProject} onClose={() => setFileAnalysis(null)} />
-      )}
-      <Toast toasts={toasts} onUndo={handleUndo} />
-      <AIChat messages={aiMessages} loading={aiLoading} onSend={aiSend} onClear={aiClear} onOpenChange={setAiChatOpen} />
-      {agentChatId && (() => { const ag = agentState.find(a => a.id === agentChatId); return ag ? <AgentChat agent={ag} projects={projects} onClose={() => setAgentChatId(null)} /> : null; })()}
-      {showMyPage && <MyPage onClose={() => { setShowMyPage(false); window.dispatchEvent(new Event("phq-avatar-updated")); }} />}
-      {showHire && <HireModal onHire={agent => { addAgent(agent); toast(`${agent.emoji} ${agent.name} 채용 완료!`, "success", "🤖"); setShowHire(false); }} onClose={() => setShowHire(false)} />}
-      {showStats && <StatsView projects={projects} agentState={agentState} serverStats={serverStats} onClose={() => setShowStats(false)} onSelect={id => { setSelIdState(id); setViewMode("god"); setShowStats(false); }} />}
-      {showAlerts && <AlertSettingsModal onClose={() => setShowAlerts(false)} />}
+      <Suspense fallback={null}>
+        {showPalette && <CommandPalette projects={projects} onSelect={id => { setSelIdState(id); setViewMode("god"); }} onClose={() => setShowPalette(false)} />}
+        {showAdd && <AddModal onAdd={addProject} onClose={() => setShowAdd(false)} />}
+        {fileAnalysis && (
+          <FileAnalysisModal analysis={fileAnalysis.analysis} filename={fileAnalysis.filename}
+            rawContent={fileAnalysis.rawContent} onConfirm={addProject} onClose={() => setFileAnalysis(null)} />
+        )}
+        <AIChat messages={aiMessages} loading={aiLoading} onSend={aiSend} onClear={aiClear} onOpenChange={setAiChatOpen} />
+        {agentChatId && (() => { const ag = agentState.find(a => a.id === agentChatId); return ag ? <AgentChat agent={ag} projects={projects} onClose={() => setAgentChatId(null)} /> : null; })()}
+        {showMyPage && <MyPage onClose={() => { setShowMyPage(false); window.dispatchEvent(new Event("phq-avatar-updated")); }} />}
+        {showHire && <HireModal onHire={agent => { addAgent(agent); toast(`${agent.emoji} ${agent.name} 채용 완료!`, "success", "🤖"); setShowHire(false); }} onClose={() => setShowHire(false)} />}
+        {showStats && <StatsView projects={projects} agentState={agentState} serverStats={serverStats} onClose={() => setShowStats(false)} onSelect={id => { setSelIdState(id); setViewMode("god"); setShowStats(false); }} />}
+        {showAlerts && <AlertSettingsModal onClose={() => setShowAlerts(false)} />}
+      </Suspense>
 
       {/* Mobile bottom tab bar */}
       <div className="phq-mobile-tabs" style={{

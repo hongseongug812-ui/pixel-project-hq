@@ -3,7 +3,7 @@
 > 픽셀아트 스타일의 AI 회사 프로젝트 관리 툴.
 > 탑뷰로 회사 전체를 내려다보며 AI 직원들이 실시간으로 프로젝트를 처리한다.
 
-[![Tests](https://img.shields.io/badge/tests-79%20passing-4ade80?style=flat-square&logo=vitest)](./src)
+[![Tests](https://img.shields.io/badge/tests-170%20passing-4ade80?style=flat-square&logo=vitest)](./src)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3b82f6?style=flat-square&logo=typescript)](./tsconfig.json)
 [![Vercel](https://img.shields.io/badge/deployed-Vercel-000?style=flat-square&logo=vercel)](https://pixel-project-hq.vercel.app)
 [![License](https://img.shields.io/badge/license-MIT-a78bfa?style=flat-square)](./LICENSE)
@@ -46,7 +46,7 @@
 | **Stats 대시보드** | KPI 카드, 마감 임박, 헬스 스코어 하위, 에이전트 현황 |
 | **Kanban 뷰** | 상태별 보드 뷰 전환 |
 | **Portfolio 뷰** | 포트폴리오용 카드 뷰 + JSON/HTML 익스포트 |
-| **알림 연동** | Telegram Bot · Discord Webhook 알림 (방치/긴급 프로젝트) |
+| **알림 연동** | Discord Webhook 알림 (방치/긴급 프로젝트) |
 | **GitHub 연동** | 저장소 URL 등록 시 최근 커밋 자동 표시 |
 | **AutoPilot** | 진행률 자동 업데이트, 서버 다운 감지, 태스크 자동 추가 |
 | **실시간 동기화** | Supabase Realtime — 다기기 즉시 반영 |
@@ -62,7 +62,7 @@ Styling    인라인 스타일 (Press Start 2P · DotGothic16 폰트)
 Backend    Supabase (Auth + PostgreSQL + Realtime)
 AI         OpenAI GPT-4o / GPT-4o-mini (Vercel Edge proxy)
 배포       Vercel (Edge Functions: /api/openai, /api/ping)
-테스트     Vitest + Testing Library (79 tests)
+테스트     Vitest + Testing Library (136 tests)
 ```
 
 ---
@@ -85,7 +85,7 @@ OPENAI_API_KEY=sk-...        # 서버 전용 (브라우저에 노출 안됨)
 
 ```bash
 npm run dev     # http://localhost:3000
-npm test        # 79개 테스트
+npm test        # 136개 테스트
 npm run build   # 프로덕션 빌드
 ```
 

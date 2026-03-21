@@ -2,11 +2,14 @@ import type { Project } from "../types";
 import type { ServerStatsMap } from "../types";
 
 /**
- * Health Score 0~100
- * - 진행률          40%
- * - 최근 활동       30%  (7일 이상 방치 시 0)
- * - 태스크 완료율   20%
- * - 서버 상태       10%
+ * 프로젝트 건강 점수를 0~100 범위로 계산한다.
+ *
+ * | 항목           | 가중치 | 세부 규칙                              |
+ * |----------------|--------|----------------------------------------|
+ * | 진행률         | 40%    | progress * 0.4                         |
+ * | 최근 활동      | 30%    | 오늘→30, 1일→25, 3일→18, 7일→8, 14일→3, 초과→0 |
+ * | 태스크 완료율  | 20%    | done/total * 20, 태스크 없으면 중립 10  |
+ * | 서버 상태      | 10%    | up→10, 미등록→10, 알 수 없음→5, down→0 |
  */
 export function calcHealthScore(p: Project, serverStats: ServerStatsMap): number {
   if (p.status === "complete") return 100;

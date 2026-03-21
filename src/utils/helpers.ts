@@ -1,14 +1,20 @@
 import type { Task } from "../types";
 
+/** ISO 날짜 문자열로부터 오늘까지 경과 일수를 반환한다. */
 export const daysSince = (d: string): number =>
   Math.floor((Date.now() - new Date(d).getTime()) / 864e5);
 
+/**
+ * 프로젝트의 방치 수준을 반환한다.
+ * @returns 0 = 정상, 1 = 경고(3~6일), 2 = 위험(7일+)
+ */
 export const neglect = (d: string, s: string): 0 | 1 | 2 => {
   if (s === "complete") return 0;
   const n = daysSince(d);
   return n >= 7 ? 2 : n >= 3 ? 1 : 0;
 };
 
+/** HH:MM 형식의 현재 시각 문자열을 반환한다. */
 export function timeNow(): string {
   const n = new Date();
   return `${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}`;

@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef } from "react";
 import type { Project, ToastItem } from "../types";
 
-const API_KEY = (import.meta.env.VITE_OPENAI_API_KEY as string | undefined)?.trim();
+const SCHEDULER_KEY = "phq_scheduler_last_run";
 
 type ToastFn = (msg: string, type?: ToastItem["type"], emoji?: string) => void;
 type PushMsgFn = (msg: string) => void; // injects AI message into chat
@@ -38,15 +38,15 @@ export function useAIScheduler(
   pushAIMessage: PushMsgFn,
   toast: ToastFn,
 ) {
-  const ranRef = useRef(false);
+  const ranTodayRef = useRef(false);
 
   const runAnalysis = useCallback(async () => {
-    if (!API_KEY || !projects.length) return;
+    if (!projects.length) return;
 
     try {
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      const res = await fetch("/api/openai", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "gpt-4o-mini",
           max_tokens: 500,
@@ -55,21 +55,27 @@ export function useAIScheduler(
       });
       if (!res.ok) return;
       const data = await res.json() as { choices: [{ message: { content: string } }] };
-      const reply = data.choices[0].message.content.trim();
-      pushAIMessage(`📋 **오늘의 AI 브리핑**\n\n${reply}`);
+      const reply = data.choices[0]?.message?.content?.trim();
+      if (reply) pushAIMessage(`📋 **오늘의 AI 브리핑**\n\n${reply}`);
     } catch {
       // silent fail — scheduler is non-critical
     }
   }, [projects, pushAIMessage]);
 
-  // Auto-run once when projects are loaded
+  // 하루 1회 자동 실행 (날짜가 바뀌면 다시 실행)
   useEffect(() => {
-    if (ranRef.current || projects.length === 0) return;
-    ranRef.current = true;
-    // Small delay so app finishes rendering first
+    if (ranTodayRef.current || projects.length === 0) return;
+
+    const today = new Date().toDateString();
+    const lastRun = localStorage.getItem(SCHEDULER_KEY);
+    if (lastRun === today) { ranTodayRef.current = true; return; }
+
+    ranTodayRef.current = true;
     const t = setTimeout(() => {
-      runAnalysis();
-      toast("AI가 프로젝트를 분석했습니다", "success", "🤖");
+      runAnalysis().then(() => {
+        localStorage.setItem(SCHEDULER_KEY, today);
+        toast("AI가 프로젝트를 분석했습니다", "success", "🤖");
+      });
     }, 2000);
     return () => clearTimeout(t);
   }, [projects.length]);

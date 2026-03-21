@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { readStorage, isPlainObject } from "../utils/storage";
 import type { Project } from "../types";
 
 export interface GitCommit {
@@ -28,12 +29,12 @@ interface CacheEntry {
   fetchedAt: number;
 }
 
+function isCacheRecord(v: unknown): v is Record<string, CacheEntry> {
+  return isPlainObject(v);
+}
+
 function loadCache(): Record<string, CacheEntry> {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
-  return {};
+  return readStorage(CACHE_KEY, isCacheRecord, {});
 }
 
 function saveCache(cache: Record<string, CacheEntry>) {
@@ -53,7 +54,17 @@ export function useGitHub(projects: Project[]) {
     const cache = loadCache();
     const now = Date.now();
 
-    githubProjects.forEach(async (project) => {
+    // 만료된 캐시 항목 정리 (TTL 초과분 제거)
+    const staleKeys = Object.keys(cache).filter(k => now - cache[k].fetchedAt >= CACHE_TTL);
+    if (staleKeys.length > 0) {
+      const cleaned = { ...cache };
+      staleKeys.forEach(k => delete cleaned[k]);
+      saveCache(cleaned);
+    }
+
+    const controller = new AbortController();
+
+    async function fetchProject(project: Project) {
       const repoPath = extractRepoPath(project.githubUrl!);
       if (!repoPath) return;
 
@@ -69,15 +80,26 @@ export function useGitHub(projects: Project[]) {
       try {
         const res = await fetch(`https://api.github.com/repos/${repoPath}/commits?per_page=5`, {
           headers: { Accept: "application/vnd.github.v3+json" },
+          signal: controller.signal,
         });
 
         if (!res.ok) return;
 
-        const json = await res.json() as Array<{
+        interface GitHubCommitResponse {
           sha: string;
           commit: { message: string; author: { name: string; date: string } };
           html_url: string;
-        }>;
+        }
+        function isGitHubResponse(data: unknown): data is GitHubCommitResponse[] {
+          return Array.isArray(data) && data.every(c =>
+            c !== null && typeof c === "object" &&
+            typeof c.sha === "string" &&
+            typeof c.html_url === "string" &&
+            typeof c.commit?.message === "string"
+          );
+        }
+        const json = await res.json();
+        if (!isGitHubResponse(json)) return;
 
         const commits: GitCommit[] = json.map(c => ({
           sha: c.sha.slice(0, 7),
@@ -92,23 +114,19 @@ export function useGitHub(projects: Project[]) {
         // Update cache
         const newCache = { ...loadCache(), [repoPath]: { data: commits, fetchedAt: now } };
         saveCache(newCache);
-      } catch {
-        /* silent: no GitHub token, rate limit, etc. */
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          /* silent: no GitHub token, rate limit, etc. */
+        }
       } finally {
         setLoading(prev => { const next = new Set(prev); next.delete(project.id); return next; });
       }
-    });
+    }
+
+    Promise.all(githubProjects.map(fetchProject));
+
+    return () => controller.abort();
   }, [projects.map(p => p.id + (p.githubUrl ?? "")).join(",")]);
 
-  function refreshProject(project: Project) {
-    const repoPath = extractRepoPath(project.githubUrl ?? "");
-    if (!repoPath) return;
-    const cache = loadCache();
-    delete cache[repoPath];
-    saveCache(cache);
-    // Re-trigger by clearing commitMap entry
-    setCommitMap(prev => { const next = { ...prev }; delete next[project.id]; return next; });
-  }
-
-  return { commitMap, loading, refreshProject };
+  return { commitMap, loading };
 }

@@ -1,29 +1,12 @@
 import { useEffect, useRef } from "react";
 import { loadUserSettings } from "../components/MyPage";
+import { sendDiscord } from "../utils/discord";
 import type { Project } from "../types";
 
 const ENV_DISCORD_WEBHOOK = (import.meta.env.VITE_DISCORD_WEBHOOK as string | undefined)?.trim();
-const CHECK_INTERVAL  = 10 * 60 * 1000; // 10분마다 체크
-const MAX_ALERTS_PER_CYCLE = 3;          // 회당 최대 알림 수
-const MAX_FAILURES = 3;                  // 이 횟수 초과 실패 시 채널 비활성화
-
-async function sendDiscord(text: string, webhookUrl: string): Promise<boolean> {
-  if (!webhookUrl) return false;
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
-    const res = await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: text }),
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
+const CHECK_INTERVAL      = 10 * 60 * 1000; // 10분마다 체크
+const MAX_ALERTS_PER_CYCLE = 3;              // 회당 최대 알림 수
+const MAX_FAILURES         = 3;              // 이 횟수 초과 실패 시 채널 비활성화
 
 interface Alert {
   key: string;   // dedup key — don't re-send same alert
@@ -76,7 +59,7 @@ export function useAlertWatcher(projects: Project[]) {
     const userSettings = loadUserSettings();
     const discordWebhook = userSettings.discordWebhook.trim() || ENV_DISCORD_WEBHOOK;
     if (discordWebhook && dcFailures.current < MAX_FAILURES) {
-      const ok = await sendDiscord(text, discordWebhook);
+      const ok = await sendDiscord(discordWebhook, text);
       dcFailures.current = ok ? 0 : dcFailures.current + 1;
     }
   }

@@ -4,17 +4,17 @@ import { useLogs } from "../contexts/LogsContext";
 import { daysSince } from "../utils/helpers";
 import type { Project, ServerStatsMap } from "../types";
 
-const SERVER_INTERVAL = 15_000; // 서버 체크: 15초
-const MANAGE_INTERVAL = 60_000; // 프로젝트 관리: 60초
+const SERVER_INTERVAL    = 15_000; // 서버 체크: 15초
+const MANAGE_INTERVAL    = 60_000; // 프로젝트 관리: 60초
+const NEGLECT_THRESHOLD  = 7;      // 방치 기준 (일)
+const STAGNANT_THRESHOLD = 14;     // 정체 기준 (일)
+const OVERLOAD_THRESHOLD = 7;      // 태스크 과부하 기준 (개)
+const DEADLINE_WARN_DAYS = 7;      // 마감 임박 경고 기준 (일)
 
-const rex   = AGENTS.find(a => a.rank === "CEO")!;
-const nova  = AGENTS.find(a => a.rank === "CTO")!;
-const sage  = AGENTS.find(a => a.rank === "Lead")!;
-const hex   = AGENTS.find(a => a.rank === "Senior")!;
-const pixel = AGENTS.find(a => a.rank === "Junior")!;
-
-// 프로젝트를 자동 일시중단했는지 추적 (복구 시 자동 재개)
-const autoPaused = new Set<number | string>();
+// rank별 에이전트를 안전하게 조회 — 없으면 해당 로직을 건너뜀
+function findAgent(rank: string) {
+  return AGENTS.find(a => a.rank === rank) ?? null;
+};
 
 export function useAutoPilot(
   projects: Project[],
@@ -30,6 +30,8 @@ export function useAutoPilot(
   const addTaskRef     = useRef(addTask);
   const pushLogRef     = useRef(pushLog);
   const done           = useRef<Set<string>>(new Set());
+  // 자동 일시중단한 프로젝트 ID 추적 — ref로 관리해 언마운트 시 GC 가능
+  const autoPaused     = useRef(new Set<number | string>());
 
   useEffect(() => { projectsRef.current    = projects;      }, [projects]);
   useEffect(() => { serverStatsRef.current = serverStats;   }, [serverStats]);
@@ -51,21 +53,27 @@ export function useAutoPilot(
         const stat = stats[p.serverUrl];
         if (!stat) return;
 
+        const hex = findAgent("Senior");
+
         // 서버 다운 → 자동 일시중단
         if (stat.status === "down" && p.status === "active") {
-          autoPaused.add(p.id);
+          autoPaused.current.add(p.id);
           update(p.id, { status: "paused" });
           addT(p.id, `🔴 서버 장애: ${p.serverUrl} 즉시 점검 필요`);
-          log(`${p.name} 서버 다운 → 자동 일시중단`, hex.emoji, hex.body, hex.name);
-          window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: hex.id, content: `🔴 [${p.name}] 서버 장애 감지! ${p.serverUrl} — 즉시 점검에 들어갑니다.`, channel: "ops" } }));
+          if (hex) {
+            log(`${p.name} 서버 다운 → 자동 일시중단`, hex.emoji, hex.body, hex.name);
+            window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: hex.id, content: `🔴 [${p.name}] 서버 장애 감지! ${p.serverUrl} — 즉시 점검에 들어갑니다.`, channel: "ops" } }));
+          }
         }
 
         // 서버 복구 → 자동 재개 (autopilot이 중단시킨 것만)
-        if (stat.status === "up" && p.status === "paused" && autoPaused.has(p.id)) {
-          autoPaused.delete(p.id);
+        if (stat.status === "up" && p.status === "paused" && autoPaused.current.has(p.id)) {
+          autoPaused.current.delete(p.id);
           update(p.id, { status: "active" });
-          log(`${p.name} 서버 복구 → 자동 재개`, hex.emoji, hex.body, hex.name);
-          window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: hex.id, content: `✅ [${p.name}] 서버 복구 확인. 자동 재개 처리했습니다.`, channel: "ops" } }));
+          if (hex) {
+            log(`${p.name} 서버 복구 → 자동 재개`, hex.emoji, hex.body, hex.name);
+            window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: hex.id, content: `✅ [${p.name}] 서버 복구 확인. 자동 재개 처리했습니다.`, channel: "ops" } }));
+          }
         }
       });
     }
@@ -84,53 +92,62 @@ export function useAutoPilot(
       const log    = pushLogRef.current;
       const d      = new Date().toISOString().slice(0, 13); // 시간 단위 dedup
 
+      const sage  = findAgent("Lead");
+      const rex   = findAgent("CEO");
+      const nova  = findAgent("CTO");
+      const pixel = findAgent("Junior");
+
       // Sage (Lead): 방치 프로젝트 긴급 격상
       projs.forEach(p => {
         if (p.status === "complete" || p.status === "paused") return;
         const days = daysSince(p.lastActivity);
-        if (days < 7 || p.priority === "high") return;
+        if (days < NEGLECT_THRESHOLD || p.priority === "high") return;
         const key = `neglect-${p.id}-${d}`;
         if (done.current.has(key)) return;
         done.current.add(key);
         update(p.id, { priority: "high" });
         addT(p.id, `⚠️ ${days}일 방치 — 즉시 재개 필요`);
-        log(`${p.name} ${days}일 방치 → priority HIGH 격상`, sage.emoji, sage.body, sage.name);
-        window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: sage.id, content: `⚠️ [${p.name}] ${days}일째 업데이트 없음. 팀 전체 주의 요망 — 즉시 상태 확인 부탁드립니다.`, channel: "general" } }));
+        if (sage) {
+          log(`${p.name} ${days}일 방치 → priority HIGH 격상`, sage.emoji, sage.body, sage.name);
+          window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: sage.id, content: `⚠️ [${p.name}] ${days}일째 업데이트 없음. 팀 전체 주의 요망 — 즉시 상태 확인 부탁드립니다.`, channel: "general" } }));
+        }
       });
 
       // Rex (CEO): 마감 임박 전사 긴급 지시
       projs.forEach(p => {
         if (!p.targetDate || p.status === "complete") return;
-        const daysLeft = Math.ceil((new Date(p.targetDate).getTime() - Date.now()) / 864e5);
-        if (daysLeft > 7 || daysLeft < 0 || p.priority === "high") return;
+        const daysLeft = Math.ceil((new Date(p.targetDate).getTime() - Date.now()) / 86_400_000);
+        if (daysLeft > DEADLINE_WARN_DAYS || daysLeft < 0 || p.priority === "high") return;
         const key = `deadline-${p.id}-${d}`;
         if (done.current.has(key)) return;
         done.current.add(key);
         update(p.id, { priority: "high" });
-        log(`${p.name} 마감 D-${daysLeft} — 전사 긴급 지정`, rex.emoji, rex.body, rex.name);
-        window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: rex.id, content: `📢 [${p.name}] 마감 D-${daysLeft}. 전사 긴급 우선순위로 격상합니다. 모든 팀원은 해당 프로젝트에 집중해주세요.`, channel: "announcements" } }));
+        if (rex) {
+          log(`${p.name} 마감 D-${daysLeft} — 전사 긴급 지정`, rex.emoji, rex.body, rex.name);
+          window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: rex.id, content: `📢 [${p.name}] 마감 D-${daysLeft}. 전사 긴급 우선순위로 격상합니다. 모든 팀원은 해당 프로젝트에 집중해주세요.`, channel: "announcements" } }));
+        }
       });
 
       // Nova (CTO): 장기 정체 기술 부채 경고
       projs.forEach(p => {
         if (p.status === "complete" || p.progress > 0) return;
         const days = daysSince(p.lastActivity);
-        if (days < 14) return;
+        if (days < STAGNANT_THRESHOLD) return;
         const key = `stagnant-${p.id}-${d}`;
         if (done.current.has(key)) return;
         done.current.add(key);
         addT(p.id, `🔍 진행률 0% 지속 — 아키텍처 재검토 요망`);
-        log(`${p.name} ${days}일+ 정체 → 기술 부채 경고`, nova.emoji, nova.body, nova.name);
+        if (nova) log(`${p.name} ${days}일+ 정체 → 기술 부채 경고`, nova.emoji, nova.body, nova.name);
       });
 
       // Pixel (Junior): 태스크 과부하 경고
       projs.forEach(p => {
         const pending = p.tasks.filter(t => !t.done).length;
-        if (pending < 7 || p.status !== "active") return;
+        if (pending < OVERLOAD_THRESHOLD || p.status !== "active") return;
         const key = `overload-${p.id}-${d}`;
         if (done.current.has(key)) return;
         done.current.add(key);
-        log(`${p.name} 미완료 ${pending}건 적체 — 태스크 분산 권고`, pixel.emoji, pixel.body, pixel.name);
+        if (pixel) log(`${p.name} 미완료 ${pending}건 적체 — 태스크 분산 권고`, pixel.emoji, pixel.body, pixel.name);
       });
     }
 
