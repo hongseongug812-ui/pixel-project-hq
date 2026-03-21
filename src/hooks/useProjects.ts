@@ -3,11 +3,13 @@ import { isConfigured } from "../lib/supabase";
 import * as db from "../lib/db";
 import { useLogs } from "../contexts/LogsContext";
 import { validateProjectInput } from "../utils/security";
+import { readStorage, isObjectArray } from "../utils/storage";
 import SEED from "../data/projects";
 import type { Project, ToastItem } from "../types";
 
 const KEY = "phq6";
 const saveLocal = (p: Project[]): void => localStorage.setItem(KEY, JSON.stringify(p));
+const loadLocal  = (): Project[] => readStorage(KEY, isObjectArray, []) as Project[];
 
 type ToastFn = (msg: string, type?: ToastItem["type"], emoji?: string) => void;
 
@@ -31,10 +33,10 @@ export function useProjects(user: { id: string } | null, toast?: ToastFn, isDemo
       } catch (e) {
         pushLog(`DB 로드 오류: ${(e as Error).message}`, "❌", "#ef4444");
         toast?.("클라우드 연결 실패 — 로컬 데이터로 복구했습니다", "warn", "☁️");
-        try { setProjects(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch { setProjects([]); }
+        setProjects(loadLocal());
       }
     } else {
-      try { setProjects(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch { setProjects([]); }
+      setProjects(loadLocal());
     }
     setLoadingData(false);
   }, [user, pushLog, isDemo]);

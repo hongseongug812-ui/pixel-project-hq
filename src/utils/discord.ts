@@ -11,9 +11,9 @@ export async function sendDiscord(
 ): Promise<boolean> {
   const url = webhookUrl.trim();
   if (!url) return false;
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     const body: Record<string, string> = { content };
     if (options?.username) body.username = options.username;
     const res = await fetch(url, {
@@ -22,9 +22,13 @@ export async function sendDiscord(
       body: JSON.stringify(body),
       signal: ctrl.signal,
     });
-    clearTimeout(timer);
     return res.ok;
-  } catch {
+  } catch (err) {
+    if ((err as Error).name !== "AbortError") {
+      console.warn("[Discord] webhook 전송 실패:", (err as Error).message);
+    }
     return false;
+  } finally {
+    clearTimeout(timer);
   }
 }

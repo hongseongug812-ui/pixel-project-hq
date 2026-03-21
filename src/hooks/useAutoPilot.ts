@@ -34,7 +34,12 @@ export function useAutoPilot(
   // 자동 일시중단한 프로젝트 ID 추적 — ref로 관리해 언마운트 시 GC 가능
   const autoPaused     = useRef(new Set<number | string>());
 
-  useEffect(() => { projectsRef.current    = projects;      }, [projects]);
+  useEffect(() => {
+    projectsRef.current = projects;
+    // 삭제된 프로젝트의 ID를 autoPaused에서 정리 (메모리 누수 방지)
+    const activeIds = new Set(projects.map(p => p.id));
+    autoPaused.current.forEach(id => { if (!activeIds.has(id)) autoPaused.current.delete(id); });
+  }, [projects]);
   useEffect(() => { serverStatsRef.current = serverStats;   }, [serverStats]);
   useEffect(() => { updateRef.current      = updateProject; }, [updateProject]);
   useEffect(() => { addTaskRef.current     = addTask;       }, [addTask]);
@@ -92,6 +97,12 @@ export function useAutoPilot(
       const addT   = addTaskRef.current;
       const log    = pushLogRef.current;
       const d      = new Date().toISOString().slice(0, 13); // 시간 단위 dedup
+
+      // done Set 정리 — 현재 시간 이전 hour 키 제거 (메모리 누수 방지)
+      done.current.forEach(key => {
+        const hourMatch = key.match(/\d{4}-\d{2}-\d{2}T\d{2}/);
+        if (hourMatch && hourMatch[0] < d) done.current.delete(key);
+      });
 
       const sage  = findAgent("Lead");
       const rex   = findAgent("CEO");

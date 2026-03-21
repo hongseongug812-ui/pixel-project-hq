@@ -45,6 +45,28 @@ describe("rowToProject", () => {
     expect(rowToProject(minimalRow).featured).toBe(false);
   });
 
+  it("clamps progress to 0-100 range", () => {
+    expect(rowToProject({ ...minimalRow, progress: 150 }).progress).toBe(100);
+    expect(rowToProject({ ...minimalRow, progress: -10 }).progress).toBe(0);
+  });
+
+  it("falls back to 'active' for invalid status", () => {
+    expect(rowToProject({ ...minimalRow, status: "unknown_status" }).status).toBe("active");
+  });
+
+  it("falls back to 'medium' for invalid priority", () => {
+    expect(rowToProject({ ...minimalRow, priority: "critical" }).priority).toBe("medium");
+  });
+
+  it("falls back to 'lab' for invalid room", () => {
+    expect(rowToProject({ ...minimalRow, room: "bathroom" }).room).toBe("lab");
+  });
+
+  it("filters non-string values out of stack array", () => {
+    const p = rowToProject({ ...minimalRow, stack: ["React", 42, null, "TypeScript"] });
+    expect(p.stack).toEqual(["React", "TypeScript"]);
+  });
+
   it("maps snake_case server_url → serverUrl", () => {
     const p = rowToProject({ ...minimalRow, server_url: "https://example.com" });
     expect(p.serverUrl).toBe("https://example.com");

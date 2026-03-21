@@ -122,14 +122,14 @@ export function useGitHub(projects: Project[]) {
         saveCache(newCache);
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
-          /* silent: no GitHub token, rate limit, etc. */
+          console.warn(`[GitHub] ${repoPath} 커밋 로드 실패:`, (err as Error).message);
         }
       } finally {
         setLoading(prev => { const next = new Set(prev); next.delete(project.id); return next; });
       }
     }
 
-    Promise.all(githubProjects.map(fetchProject));
+    void Promise.all(githubProjects.map(fetchProject));
 
     return () => controller.abort();
   }, [projectsKey]);

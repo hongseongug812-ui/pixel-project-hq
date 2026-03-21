@@ -1,6 +1,27 @@
 import { supabase } from "./supabase";
 import type { Project, Task, ProjectStatus, ProjectPriority, RoomKey } from "../types";
 
+// ── 허용 값 집합 (DB 행 검증에 사용) ─────────────────────────────────
+const VALID_STATUSES  = new Set<ProjectStatus>(["active", "pivot", "complete", "paused"]);
+const VALID_PRIORITIES = new Set<ProjectPriority>(["high", "medium", "low"]);
+const VALID_ROOMS     = new Set<RoomKey>(["lab", "office", "server", "ceo", "lounge", "meeting", "storage"]);
+
+function str(v: unknown, fallback = ""): string {
+  return typeof v === "string" ? v : String(fallback);
+}
+function num(v: unknown, fallback = 0): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+function bool(v: unknown, fallback = false): boolean {
+  return typeof v === "boolean" ? v : fallback;
+}
+function strOrNull(v: unknown): string | null {
+  return typeof v === "string" ? v : null;
+}
+function numOrNull(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
 // ── 변환 유틸 ────────────────────────────────────────────────────────
 export const FIELD_MAP: Record<string, string> = {
   lastActivity:    "last_activity",
@@ -24,26 +45,29 @@ export const FIELD_MAP: Record<string, string> = {
 };
 
 export function rowToProject(row: Record<string, unknown>): Project {
+  const rawStatus   = row.status as string;
+  const rawPriority = row.priority as string;
+  const rawRoom     = row.room as string;
   return {
-    id:           row.id as number | string,
-    name:         row.name as string,
-    status:       row.status        as ProjectStatus,
-    progress:     row.progress      as number,
-    priority:     row.priority      as ProjectPriority,
-    lastActivity: row.last_activity as string,
-    room:         row.room          as RoomKey,
-    serverUrl:    (row.server_url   ?? null) as string | null,
-    githubUrl:    (row.github_url   ?? null) as string | null,
-    thumbnail:    (row.thumbnail    ?? null) as string | null,
-    description:  (row.description  ?? null) as string | null,
-    featured:     (row.featured     ?? false) as boolean,
-    startDate:    (row.start_date   ?? null) as string | null,
-    endDate:      (row.end_date     ?? null) as string | null,
-    stack:           (row.stack            ?? []) as string[],
-    tasks:           (row.tasks            ?? []) as Task[],
-    assignedAgentId: (row.assigned_agent_id ?? null) as string | null,
-    budget:          (row.budget            ?? null) as number | null,
-    targetDate:      (row.target_date       ?? null) as string | null,
+    id:           (typeof row.id === "number" || typeof row.id === "string") ? row.id : 0,
+    name:         str(row.name),
+    status:       VALID_STATUSES.has(rawStatus as ProjectStatus)   ? rawStatus as ProjectStatus   : "active",
+    progress:     Math.max(0, Math.min(100, num(row.progress))),
+    priority:     VALID_PRIORITIES.has(rawPriority as ProjectPriority) ? rawPriority as ProjectPriority : "medium",
+    lastActivity: str(row.last_activity, new Date().toISOString().slice(0, 10)),
+    room:         VALID_ROOMS.has(rawRoom as RoomKey) ? rawRoom as RoomKey : "lab",
+    serverUrl:    strOrNull(row.server_url),
+    githubUrl:    strOrNull(row.github_url),
+    thumbnail:    strOrNull(row.thumbnail),
+    description:  strOrNull(row.description),
+    featured:     bool(row.featured),
+    startDate:    strOrNull(row.start_date),
+    endDate:      strOrNull(row.end_date),
+    stack:        Array.isArray(row.stack) ? (row.stack as unknown[]).filter((s): s is string => typeof s === "string") : [],
+    tasks:        Array.isArray(row.tasks) ? row.tasks as Task[] : [],
+    assignedAgentId: strOrNull(row.assigned_agent_id),
+    budget:       numOrNull(row.budget),
+    targetDate:   strOrNull(row.target_date),
   };
 }
 
