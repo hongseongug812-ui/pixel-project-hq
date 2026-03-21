@@ -269,6 +269,81 @@ describe("useAIChat", () => {
     expect(result.current.loading).toBe(false);
   });
 
+  it("tool_call: update_project with non-existent id skips handler", async () => {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{
+            message: {
+              role: "assistant", content: null,
+              tool_calls: [{ id: "call_v", function: { name: "update_project", arguments: JSON.stringify({ id: 999, status: "complete" }) } }],
+            },
+            finish_reason: "tool_calls",
+          }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: "처리됨" } }] }),
+      });
+
+    const { result } = renderHook(() => useAIChat([sampleProject], mockHandlers, mockToast));
+    await act(async () => { await result.current.send("999 완료로"); });
+
+    expect(mockHandlers.updateProject).not.toHaveBeenCalled();
+  });
+
+  it("tool_call: delete_project with non-existent id skips handler", async () => {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{
+            message: {
+              role: "assistant", content: null,
+              tool_calls: [{ id: "call_d", function: { name: "delete_project", arguments: JSON.stringify({ id: 999 }) } }],
+            },
+            finish_reason: "tool_calls",
+          }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: "처리됨" } }] }),
+      });
+
+    const { result } = renderHook(() => useAIChat([sampleProject], mockHandlers, mockToast));
+    await act(async () => { await result.current.send("999 삭제"); });
+
+    expect(mockHandlers.deleteProject).not.toHaveBeenCalled();
+  });
+
+  it("tool_call: add_task with non-existent project_id skips handler", async () => {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{
+            message: {
+              role: "assistant", content: null,
+              tool_calls: [{ id: "call_t", function: { name: "add_task", arguments: JSON.stringify({ project_id: 999, text: "태스크" }) } }],
+            },
+            finish_reason: "tool_calls",
+          }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: "처리됨" } }] }),
+      });
+
+    const { result } = renderHook(() => useAIChat([sampleProject], mockHandlers, mockToast));
+    await act(async () => { await result.current.send("태스크 추가"); });
+
+    expect(mockHandlers.addTask).not.toHaveBeenCalled();
+  });
+
   it("pushAIMessage는 assistant 메시지를 직접 추가한다", () => {
     const { result } = renderHook(() =>
       useAIChat([sampleProject], mockHandlers, mockToast)

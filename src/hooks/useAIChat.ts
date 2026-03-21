@@ -281,6 +281,7 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
             ],
           }),
         });
+        if (!res2.ok) throw new Error(`API 오류 2차 (${res2.status})`);
         const data2 = await res2.json() as { choices: [{ message: { content: string } }] };
         const reply = data2.choices[0].message.content.trim();
         setMessages(prev => [...prev, { role: "assistant", content: reply }]);

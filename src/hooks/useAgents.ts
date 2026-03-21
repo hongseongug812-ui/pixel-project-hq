@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { AGENTS, ROOMS } from "../data/constants";
 import { PHQ_EVENTS } from "../data/events";
+import { LOG_ACTIONS } from "../data/agentActions";
 import { useLogs } from "../contexts/LogsContext";
 import { loadMyAvatar } from "../components/MyPage";
 import { usePageVisible } from "./usePageVisible";
@@ -13,32 +14,6 @@ const ROOM_CHANGE_EVERY  = 25;  // N 틱마다 방 이동 결정
 const MEETING_TICKS      = 35;  // 긴급 회의 지속 틱 수
 const MEETING_MIN_AGENTS = 2;   // 회의 최소 소집 인원
 const MEETING_MAX_AGENTS = 4;   // 회의 최대 소집 인원
-
-const LOG_ACTIONS: Array<(p: { name: string }) => string> = [
-  // 개발 작업
-  p => `${p.name} 코드 리뷰 완료`,
-  p => `${p.name} 보안 스캔 ✓`,
-  p => `${p.name} 의존성 업데이트 확인`,
-  p => `${p.name} 테스트 실행 중...`,
-  p => `${p.name} 성능 프로파일링`,
-  p => `${p.name} CI/CD 파이프라인 실행`,
-  // 서버 작업
-  () => `서버 헬스체크 ✓`,
-  () => `서버 응답시간 정상`,
-  p => `${p.name} 배포 파이프라인 확인`,
-  // 문서·백업
-  p => `${p.name} 문서 자동 갱신`,
-  p => `${p.name} 에러 로그 분석`,
-  p => `${p.name} 데이터베이스 백업 완료`,
-  // 회의·보고
-  p => `${p.name} 스프린트 리뷰 참여`,
-  p => `${p.name} 진행상황 보고`,
-  () => `팀 미팅 — 우선순위 재조정`,
-  // 라운지·휴식
-  () => `커피 브레이크 ☕`,
-  () => `점심 휴식 중 🍱`,
-  () => `팀원과 잡담 중`,
-];
 
 function makeMyAgentState(): AgentState {
   const av = loadMyAvatar();
