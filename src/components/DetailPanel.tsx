@@ -31,13 +31,18 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
   const [aiError, setAiError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newStack, setNewStack] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [nameVal, setNameVal] = useState(p?.name || "");
   const descTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSi(p?.serverUrl || "");
     setGi(p?.githubUrl || "");
     setThumb(p?.thumbnail || "");
     setDesc(p?.description || "");
+    setNameVal(p?.name || "");
+    setEditingName(false);
   }, [p?.id]);
 
   useEffect(() => {
@@ -103,7 +108,26 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
             {p.featured && <span style={{ fontFamily: PF, fontSize: 5, color: "#facc15" }}>★</span>}
-            <div style={{ fontFamily: PF, fontSize: 8, color: "#ddd", lineHeight: 1.8, wordBreak: "break-word" }}>{p.name}</div>
+            {editingName ? (
+              <input
+                ref={nameInputRef}
+                value={nameVal}
+                onChange={e => setNameVal(e.target.value)}
+                onBlur={() => { if (nameVal.trim()) onUpdate(p.id, { name: nameVal.trim() }); setEditingName(false); }}
+                onKeyDown={e => {
+                  if (e.key === "Enter") { if (nameVal.trim()) onUpdate(p.id, { name: nameVal.trim() }); setEditingName(false); }
+                  if (e.key === "Escape") { setNameVal(p.name); setEditingName(false); }
+                }}
+                autoFocus
+                style={{ fontFamily: PF, fontSize: 8, color: "#facc15", background: "#0a0a0c", border: "1px solid #facc1544", outline: "none", padding: "1px 4px", width: "100%", lineHeight: 1.8 }}
+              />
+            ) : (
+              <div
+                onClick={() => { setNameVal(p.name); setEditingName(true); }}
+                title="클릭해서 이름 수정"
+                style={{ fontFamily: PF, fontSize: 8, color: "#ddd", lineHeight: 1.8, wordBreak: "break-word", cursor: "text" }}
+              >{p.name}</div>
+            )}
           </div>
           {duration && <span style={{ fontFamily: PF, fontSize: 4, color: "#555" }}>{duration}</span>}
         </div>
@@ -396,6 +420,20 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
                 all: "unset", cursor: aiTaskLoading ? "default" : "pointer", fontFamily: PF, fontSize: 4,
                 color: "#000", background: aiTaskLoading ? "#555" : "#facc15", padding: "1px 5px", opacity: aiTaskLoading ? 0.7 : 1,
               }}>{aiTaskLoading ? "..." : "✨ AI 제안"}</button>
+            )}
+            {p.tasks.length > 0 && done < p.tasks.length && (
+              <button
+                onClick={() => onUpdate(p.id, { tasks: p.tasks.map(t => ({ ...t, done: true })), progress: 100 })}
+                title="전체 완료"
+                style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#4ade80", padding: "1px 5px", border: "1px solid #4ade8033" }}
+              >✓ ALL</button>
+            )}
+            {p.tasks.length > 0 && done === p.tasks.length && (
+              <button
+                onClick={() => onUpdate(p.id, { tasks: p.tasks.map(t => ({ ...t, done: false })), progress: 0 })}
+                title="전체 초기화"
+                style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#555", padding: "1px 5px", border: "1px solid #1e1e28" }}
+              >↺ RST</button>
             )}
             <span style={{ color: rm.color }}>{done}/{p.tasks.length}</span>
           </div>

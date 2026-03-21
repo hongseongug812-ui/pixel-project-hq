@@ -39,6 +39,7 @@ import CompanyFeed        from "./components/CompanyFeed";
 import HireModal          from "./components/HireModal";
 import StatsView          from "./components/StatsView";
 import AlertSettingsModal from "./components/AlertSettingsModal";
+import CommandPalette     from "./components/CommandPalette";
 
 import type { Project } from "./types";
 import type { SortKey } from "./components/AppToolbar";
@@ -62,6 +63,7 @@ export default function App() {
   const [agentChatId,  setAgentChatId] = useState<string | null>(null);
   const [showHire,     setShowHire]    = useState(false);
   const [hideComplete, setHideComplete] = useState(false);
+  const [showPalette,  setShowPalette]  = useState(false);
 
   const { projects, setProjects, loadingData, saving, loadProjects, syncLocal, addProject, deleteProject, updateProject, toggleTask, addTask } = useProjects(user, toast, isDemo);
   const { agentState, tick, isMeetingActive } = useAgents(projects, aiChatOpen);
@@ -116,8 +118,9 @@ export default function App() {
   // ── keyboard shortcuts ────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setShowAdd(false); setFileAnalysis(null); setSelIdState(null); }
+      if (e.key === "Escape") { setShowAdd(false); setFileAnalysis(null); setSelIdState(null); setShowPalette(false); }
       if ((e.ctrlKey || e.metaKey) && e.key === "n") { e.preventDefault(); setShowAdd(true); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); setShowPalette(v => !v); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -382,6 +385,7 @@ export default function App() {
         )}
       </div>
 
+      {showPalette && <CommandPalette projects={projects} onSelect={id => { setSelIdState(id); setViewMode("god"); }} onClose={() => setShowPalette(false)} />}
       {showAdd && <AddModal onAdd={addProject} onClose={() => setShowAdd(false)} />}
       {fileAnalysis && (
         <FileAnalysisModal analysis={fileAnalysis.analysis} filename={fileAnalysis.filename}
