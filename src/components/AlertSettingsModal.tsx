@@ -9,33 +9,16 @@ interface Props {
 
 export default function AlertSettingsModal({ onClose, onSave }: Props) {
   const init = loadUserSettings();
-  const [tgToken,   setTgToken]   = useState(init.telegramToken);
-  const [tgChat,    setTgChat]    = useState(init.telegramChatId);
   const [discord,   setDiscord]   = useState(init.discordWebhook);
   const [neglect,   setNeglect]   = useState(init.notifyNeglect);
   const [urgent,    setUrgent]    = useState(init.notifyUrgent);
   const [testStatus, setTestStatus] = useState<"idle"|"ok"|"fail">("idle");
 
   function save() {
-    const settings = { telegramToken: tgToken.trim(), telegramChatId: tgChat.trim(), discordWebhook: discord.trim(), notifyNeglect: neglect, notifyUrgent: urgent };
+    const settings = { discordWebhook: discord.trim(), notifyNeglect: neglect, notifyUrgent: urgent };
     localStorage.setItem(MYPAGE_STORAGE_KEY, JSON.stringify(settings));
     onSave?.();
     onClose();
-  }
-
-  async function testTelegram() {
-    const token = tgToken.trim();
-    const chatId = tgChat.trim();
-    if (!token || !chatId) { setTestStatus("fail"); return; }
-    setTestStatus("idle");
-    try {
-      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text: "✅ Pixel HQ 알림 연결 테스트 성공!" }),
-      });
-      setTestStatus(res.ok ? "ok" : "fail");
-    } catch { setTestStatus("fail"); }
   }
 
   async function testDiscord() {
@@ -83,23 +66,15 @@ export default function AlertSettingsModal({ onClose, onSave }: Props) {
           <button onClick={onClose} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 8, color: "#555" }}>✕</button>
         </div>
 
-        {/* Telegram */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ fontFamily: PF, fontSize: 5, color: "#4cc9f0" }}>📱 TELEGRAM</div>
-          {input(tgToken, setTgToken, "Bot Token (숫자:AAA...)")}
-          {input(tgChat, setTgChat, "Chat ID (-100xxxxxxxxxx)")}
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <button onClick={testTelegram} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#000", background: "#4cc9f0", padding: "3px 10px" }}>테스트</button>
-            {testStatus === "ok"   && <span style={{ fontFamily: BF, fontSize: 11, color: "#4ade80" }}>✓ 전송 성공</span>}
-            {testStatus === "fail" && <span style={{ fontFamily: BF, fontSize: 11, color: "#ef4444" }}>✗ 실패 (토큰/채팅 ID 확인)</span>}
-          </div>
-        </div>
-
         {/* Discord */}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ fontFamily: PF, fontSize: 5, color: "#a78bfa" }}>💬 DISCORD WEBHOOK</div>
           {input(discord, setDiscord, "https://discord.com/api/webhooks/...")}
-          <button onClick={testDiscord} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#000", background: "#a78bfa", padding: "3px 10px", width: "fit-content" }}>테스트</button>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button onClick={testDiscord} style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#000", background: "#a78bfa", padding: "3px 10px" }}>테스트</button>
+            {testStatus === "ok"   && <span style={{ fontFamily: BF, fontSize: 11, color: "#4ade80" }}>✓ 전송 성공</span>}
+            {testStatus === "fail" && <span style={{ fontFamily: BF, fontSize: 11, color: "#ef4444" }}>✗ 실패 (Webhook URL 확인)</span>}
+          </div>
         </div>
 
         {/* 알림 종류 */}

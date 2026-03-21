@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { sendTelegram, isTelegramConfigured } from "../lib/telegram";
 import { loadUserSettings } from "../components/MyPage";
 import type { Project } from "../types";
 
@@ -71,16 +70,11 @@ function detectAlerts(projects: Project[]): Alert[] {
 export function useAlertWatcher(projects: Project[]) {
   const sentRef      = useRef<Set<string>>(new Set());
   const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
-  const tgFailures   = useRef(0);
   const dcFailures   = useRef(0);
 
   async function notify(text: string) {
     const userSettings = loadUserSettings();
     const discordWebhook = userSettings.discordWebhook.trim() || ENV_DISCORD_WEBHOOK;
-    if (isTelegramConfigured && tgFailures.current < MAX_FAILURES) {
-      const ok = await sendTelegram(text);
-      tgFailures.current = ok ? 0 : tgFailures.current + 1;
-    }
     if (discordWebhook && dcFailures.current < MAX_FAILURES) {
       const ok = await sendDiscord(text, discordWebhook);
       dcFailures.current = ok ? 0 : dcFailures.current + 1;
@@ -90,7 +84,7 @@ export function useAlertWatcher(projects: Project[]) {
   useEffect(() => {
     const userSettings = loadUserSettings();
     const discordWebhook = userSettings.discordWebhook.trim() || ENV_DISCORD_WEBHOOK;
-    if (!isTelegramConfigured && !discordWebhook) return;
+    if (!discordWebhook) return;
     if (!projects.length) return;
 
     async function check() {

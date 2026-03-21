@@ -2,7 +2,6 @@ import { useState } from "react";
 import { PF, BF, ROOMS } from "../data/constants";
 import { neglect, daysSince } from "../utils/helpers";
 import { useLogs } from "../contexts/LogsContext";
-import { isTelegramConfigured, sendTelegram, buildDailyBriefing } from "../lib/telegram";
 import type { PingHistory } from "../hooks/useServerStats";
 import { safeOpenUrl } from "../utils/security";
 import type { Project, AgentState, ServerStatsMap } from "../types";
@@ -408,16 +407,6 @@ interface LeftSidebarProps {
 
 export default function LeftSidebar({ projects, agentState, serverStats, pingHistory, pinging, onSelectProject, onRecheckServer, onRemoveServer, onRemoveAgent, onAlertSettings }: LeftSidebarProps) {
   const { logs } = useLogs();
-  const [sending, setSending] = useState(false);
-
-  async function handleBriefing() {
-    setSending(true);
-    const msg = buildDailyBriefing(projects);
-    const ok = await sendTelegram(msg);
-    setSending(false);
-    if (!ok) alert("Telegram 전송 실패\n.env에 VITE_TELEGRAM_BOT_TOKEN, VITE_TELEGRAM_CHAT_ID 설정 필요");
-  }
-
   return (
     <div style={{
       width: 230, minWidth: 210, flexShrink: 0, padding: 8,
@@ -440,30 +429,15 @@ export default function LeftSidebar({ projects, agentState, serverStats, pingHis
       <ActivityLog logs={logs} />
 
       <div style={{ display: "flex", gap: 4 }}>
-        {/* Telegram briefing */}
-        <button
-          onClick={handleBriefing}
-          disabled={sending}
-          style={{
-            all: "unset", cursor: sending ? "not-allowed" : "pointer",
-            fontFamily: PF, fontSize: 5, color: isTelegramConfigured ? "#facc15" : "#333",
-            background: "#0c0c14", border: `1px solid ${isTelegramConfigured ? "#facc1533" : "#1a1a28"}`,
-            padding: "6px 8px", textAlign: "center", flex: 1,
-          }}
-          title={isTelegramConfigured ? "텔레그램으로 브리핑 전송" : "알림 설정 필요"}
-        >
-          {sending ? "전송 중..." : isTelegramConfigured ? "📨 브리핑" : "📨 브리핑"}
-        </button>
-        {/* 알림 설정 */}
         <button
           onClick={onAlertSettings}
-          title="알림 채널 설정 (Telegram / Discord)"
+          title="알림 채널 설정 (Discord)"
           style={{
             all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 7,
             color: "#facc15", background: "#0c0c14", border: "1px solid #facc1533",
-            padding: "6px 10px", textAlign: "center",
+            padding: "6px 10px", textAlign: "center", flex: 1,
           }}
-        >🔔</button>
+        >🔔 알림 설정</button>
       </div>
     </div>
   );

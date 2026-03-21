@@ -7,8 +7,6 @@ export const AVATAR_STORAGE_KEY = "phq_my_avatar";
 
 export interface UserSettings {
   discordWebhook: string;
-  telegramToken: string;
-  telegramChatId: string;
   notifyNeglect: boolean;
   notifyUrgent: boolean;
 }
@@ -36,7 +34,7 @@ export function loadMyAvatar(): MyAvatar {
 }
 
 function defaultSettings(): UserSettings {
-  return { discordWebhook: "", telegramToken: "", telegramChatId: "", notifyNeglect: true, notifyUrgent: true };
+  return { discordWebhook: "", notifyNeglect: true, notifyUrgent: true };
 }
 
 function defaultAvatar(): MyAvatar {
@@ -129,28 +127,6 @@ export default function MyPage({ onClose }: Props) {
                   {testStatus === "sending" ? "..." : testStatus === "ok" ? "OK" : testStatus === "fail" ? "FAIL" : "TEST"}
                 </button>
               </div>
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>TELEGRAM BOT TOKEN</label>
-              <input
-                type="text"
-                value={settings.telegramToken}
-                onChange={e => setSettings(s => ({ ...s, telegramToken: e.target.value }))}
-                placeholder="1234567890:AAG..."
-                style={inputStyle}
-              />
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>TELEGRAM CHAT ID</label>
-              <input
-                type="text"
-                value={settings.telegramChatId}
-                onChange={e => setSettings(s => ({ ...s, telegramChatId: e.target.value }))}
-                placeholder="-1001234567890"
-                style={inputStyle}
-              />
             </div>
 
             <div style={{ display: "flex", gap: 16 }}>
