@@ -5,9 +5,12 @@ import type { User } from "@supabase/supabase-js";
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
+  isDemo: boolean;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  enterDemo: () => void;
+  exitDemo: () => void;
   isConfigured: boolean;
 }
 
@@ -16,6 +19,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
     if (!isConfigured || !supabase) { setLoading(false); return; }
@@ -46,10 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     if (supabase) await supabase.auth.signOut();
+    setIsDemo(false);
   };
 
+  const enterDemo = () => setIsDemo(true);
+  const exitDemo  = () => setIsDemo(false);
+
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, isConfigured }}>
+    <AuthContext.Provider value={{ user, loading, isDemo, signUp, signIn, signOut, enterDemo, exitDemo, isConfigured }}>
       {children}
     </AuthContext.Provider>
   );

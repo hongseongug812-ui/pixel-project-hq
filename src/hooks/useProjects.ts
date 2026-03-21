@@ -3,6 +3,7 @@ import { isConfigured } from "../lib/supabase";
 import * as db from "../lib/db";
 import { useLogs } from "../contexts/LogsContext";
 import { validateProjectInput } from "../utils/security";
+import SEED from "../data/projects";
 import type { Project, ToastItem } from "../types";
 
 const KEY = "phq6";
@@ -10,7 +11,7 @@ const saveLocal = (p: Project[]): void => localStorage.setItem(KEY, JSON.stringi
 
 type ToastFn = (msg: string, type?: ToastItem["type"], emoji?: string) => void;
 
-export function useProjects(user: { id: string } | null, toast?: ToastFn) {
+export function useProjects(user: { id: string } | null, toast?: ToastFn, isDemo = false) {
   const { pushLog } = useLogs();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -18,6 +19,11 @@ export function useProjects(user: { id: string } | null, toast?: ToastFn) {
 
   const loadProjects = useCallback(async () => {
     setLoadingData(true);
+    if (isDemo) {
+      setProjects(SEED.map(p => ({ ...p, tasks: p.tasks.map(t => ({ ...t })) })));
+      setLoadingData(false);
+      return;
+    }
     if (isConfigured && user) {
       try {
         const data = await db.fetchProjects(user.id);
@@ -31,7 +37,7 @@ export function useProjects(user: { id: string } | null, toast?: ToastFn) {
       try { setProjects(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch { setProjects([]); }
     }
     setLoadingData(false);
-  }, [user, pushLog]);
+  }, [user, pushLog, isDemo]);
 
   const syncLocal = useCallback((list: Project[]) => {
     if (!isConfigured || !user) saveLocal(list);

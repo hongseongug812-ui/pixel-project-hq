@@ -380,13 +380,24 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
             <span style={{ color: rm.color }}>{done}/{p.tasks.length}</span>
           </div>
         </div>
-        {p.tasks.map(t => {
+        {p.tasks.map((t, idx) => {
           const taskAgent = t.assignee ? allAgents.find(a => a.id === t.assignee) : null;
           const pc = t.priority === "high" ? "#ef4444" : t.priority === "medium" ? "#facc15" : t.priority === "low" ? "#4ade80" : null;
           const overdue = t.dueDate && !t.done && new Date(t.dueDate) < new Date();
+          const moveTask = (dir: -1 | 1) => {
+            const next = idx + dir;
+            if (next < 0 || next >= p.tasks.length) return;
+            const arr = [...p.tasks];
+            [arr[idx], arr[next]] = [arr[next], arr[idx]];
+            onUpdate(p.id, { tasks: arr });
+          };
           return (
             <div key={t.id} style={{ marginBottom: 2, background: t.done ? "#080e08" : "#0c0a0a", border: `1px solid ${t.done ? "#4ade8018" : overdue ? "#ef444433" : "#1a1a22"}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 4px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 0, flexShrink: 0 }}>
+                  <button onClick={() => moveTask(-1)} disabled={idx === 0} style={{ all: "unset", cursor: idx === 0 ? "default" : "pointer", fontFamily: PF, fontSize: 4, color: idx === 0 ? "#222" : "#555", lineHeight: 1 }}>▲</button>
+                  <button onClick={() => moveTask(1)} disabled={idx === p.tasks.length - 1} style={{ all: "unset", cursor: idx === p.tasks.length - 1 ? "default" : "pointer", fontFamily: PF, fontSize: 4, color: idx === p.tasks.length - 1 ? "#222" : "#555", lineHeight: 1 }}>▼</button>
+                </div>
                 <button onClick={() => onToggle(p.id, t.id)} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, flex: 1, minWidth: 0 }}>
                   <div style={{ width: 7, height: 7, border: `1px solid ${t.done ? "#4ade80" : "#333"}`, background: "#0a0a0c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {t.done && <span style={{ color: "#4ade80", fontSize: 5, fontFamily: PF }}>✓</span>}

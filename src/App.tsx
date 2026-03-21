@@ -44,7 +44,7 @@ import type { Project } from "./types";
 import type { SortKey } from "./components/AppToolbar";
 
 export default function App() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, isDemo, signOut, enterDemo, exitDemo } = useAuth();
   const { pushLog, initLogs }   = useLogs();
   const { toasts, setToasts, toast } = useToast();
 
@@ -62,7 +62,7 @@ export default function App() {
   const [agentChatId,  setAgentChatId] = useState<string | null>(null);
   const [showHire,     setShowHire]    = useState(false);
 
-  const { projects, setProjects, loadingData, saving, loadProjects, syncLocal, addProject, deleteProject, updateProject, toggleTask, addTask } = useProjects(user);
+  const { projects, setProjects, loadingData, saving, loadProjects, syncLocal, addProject, deleteProject, updateProject, toggleTask, addTask } = useProjects(user, toast, isDemo);
   const { agentState, tick, isMeetingActive } = useAgents(projects, aiChatOpen);
   const { serverStats, pingHistory, pinging, recheckServer } = useServerStats(projects, tick);
   const { exportJSON, exportHTML } = useExport(projects, toast);
@@ -148,7 +148,10 @@ export default function App() {
     const q = search.trim().toLowerCase();
     const base = projects.filter(p =>
       (filter === "all" || p.status === filter) &&
-      (!q || p.name.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q))
+      (!q || p.name.toLowerCase().includes(q) ||
+             (p.description || "").toLowerCase().includes(q) ||
+             (p.stack || []).some(s => s.toLowerCase().includes(q)) ||
+             p.tasks.some(t => t.text.toLowerCase().includes(q)))
     );
     return [...base].sort((a, b) => {
       switch (sort) {
@@ -192,11 +195,11 @@ export default function App() {
   }
 
   // ── auth screen ───────────────────────────────────────────────────────
-  if (isConfigured && !user) {
+  if (isConfigured && !user && !isDemo) {
     return (
       <>
         <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap" rel="stylesheet" />
-        <AuthModal onMigrate={handleMigrate} />
+        <AuthModal onMigrate={handleMigrate} onDemo={enterDemo} />
       </>
     );
   }
@@ -222,8 +225,22 @@ export default function App() {
           .phq-detail { display: none !important; }
           .phq-filters { display: none !important; }
           .phq-search { width: 120px !important; }
+          .phq-toolbar-views { display: none !important; }
+          .phq-mobile-tabs { display: flex !important; }
+          .phq-main { padding-bottom: 56px !important; }
+          .phq-office-wrap { overflow-x: auto !important; }
         }
+        .phq-mobile-tabs { display: none; }
       `}</style>
+
+      {/* Demo banner */}
+      {isDemo && (
+        <div style={{ background: "#0e0a00", borderBottom: "1px solid #facc1544", padding: "6px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontFamily: PF, fontSize: 5, color: "#facc15" }}>▶ DEMO MODE</span>
+          <span style={{ fontFamily: BF, fontSize: 12, color: "#666", flex: 1 }}>변경사항은 저장되지 않습니다. 샘플 데이터로 자유롭게 탐색해보세요.</span>
+          <button onClick={exitDemo} style={{ all: "unset", cursor: "pointer", fontFamily: BF, fontSize: 12, fontWeight: "bold", color: "#000", background: "#facc15", padding: "3px 12px" }}>로그인하기</button>
+        </div>
+      )}
 
       {/* Migration banner */}
       {migrateBanner && (
@@ -269,7 +286,7 @@ export default function App() {
       />
 
       {/* Main */}
-      <div style={{ display: "flex", minHeight: "calc(100vh - 80px)" }}>
+      <div className="phq-main" style={{ display: "flex", minHeight: "calc(100vh - 80px)" }}>
         {viewMode === "god" && showSidebar && (
           <div className={`phq-sidebar${showSidebar ? " phq-sidebar-visible" : ""}`} style={{ display: "flex" }}>
             <LeftSidebar
@@ -288,7 +305,7 @@ export default function App() {
         )}
 
         {viewMode === "god" ? (
-          <div style={{ flex: 1, padding: 12, overflow: "auto" }}>
+          <div className="phq-office-wrap" style={{ flex: 1, padding: 12, overflow: "auto" }}>
             {projects.length === 0 ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", gap: 12 }}>
                 <div style={{ fontFamily: BF, fontSize: 18, color: "#333" }}>프로젝트 없음</div>
@@ -350,6 +367,29 @@ export default function App() {
       {showHire && <HireModal onHire={agent => { addAgent(agent); toast(`${agent.emoji} ${agent.name} 채용 완료!`, "success", "🤖"); setShowHire(false); }} onClose={() => setShowHire(false)} />}
       {showStats && <StatsView projects={projects} agentState={agentState} serverStats={serverStats} onClose={() => setShowStats(false)} onSelect={id => { setSelIdState(id); setViewMode("god"); setShowStats(false); }} />}
       {showAlerts && <AlertSettingsModal onClose={() => setShowAlerts(false)} />}
+
+      {/* Mobile bottom tab bar */}
+      <div className="phq-mobile-tabs" style={{
+        position: "fixed", bottom: 0, left: 0, right: 0, height: 52,
+        background: "#0a0a12", borderTop: "1px solid #1a1a24",
+        alignItems: "center", justifyContent: "space-around", zIndex: 700,
+      }}>
+        {([
+          ["god",      "🏢", "오피스"],
+          ["kanban",   "📋", "칸반"],
+          ["feed",     "💬", "피드"],
+          ["portfolio","🗂️", "포폴"],
+        ] as [string, string, string][]).map(([v, icon, label]) => (
+          <button key={v} onClick={() => setViewMode(v)} style={{
+            all: "unset", cursor: "pointer", display: "flex", flexDirection: "column",
+            alignItems: "center", gap: 2, padding: "6px 12px",
+            opacity: viewMode === v ? 1 : 0.4,
+          }}>
+            <span style={{ fontSize: 18 }}>{icon}</span>
+            <span style={{ fontFamily: PF, fontSize: 4, color: viewMode === v ? "#facc15" : "#666" }}>{label}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

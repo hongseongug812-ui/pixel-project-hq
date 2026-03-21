@@ -4,9 +4,10 @@ import { useAuth } from "../contexts/AuthContext";
 
 interface AuthModalProps {
   onMigrate?: () => void;
+  onDemo?: () => void;
 }
 
-export default function AuthModal({ onMigrate }: AuthModalProps) {
+export default function AuthModal({ onMigrate, onDemo }: AuthModalProps) {
   const { signIn, signUp } = useAuth();
   const [tab, setTab]         = useState<"signin" | "signup">("signin");
   const [email, setEmail]     = useState("");
@@ -123,6 +124,15 @@ export default function AuthModal({ onMigrate }: AuthModalProps) {
             {loading ? "처리 중..." : tab === "signin" ? "로그인" : "가입하기"}
           </button>
         </div>
+
+        <button onClick={onDemo} style={{
+          all: "unset", cursor: "pointer", width: "100%", boxSizing: "border-box",
+          fontFamily: BF, fontSize: 13, fontWeight: "bold", color: "#facc15",
+          background: "#0e0e16", border: "1px solid #facc1533",
+          padding: "9px 0", textAlign: "center", marginTop: 8,
+        }}>
+          ▶ 데모 체험하기 (로그인 없이)
+        </button>
 
         <div style={{ fontFamily: PF, fontSize: 4, color: "#2a2a38", textAlign: "center", marginTop: 12 }}>
           PIXEL HQ v2 · Powered by Supabase
