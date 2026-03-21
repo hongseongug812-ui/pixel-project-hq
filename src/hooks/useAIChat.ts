@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { makeRateLimiter } from "../utils/security";
 import { AGENTS } from "../data/constants";
 import type { Project, ToastItem } from "../types";
@@ -154,7 +154,11 @@ ${list || "프로젝트 없음"}
 export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast: ToastFn) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const rateLimitRef = useRef(makeRateLimiter(RATE_LIMIT_MS));
+  const rateLimitRef    = useRef(makeRateLimiter(RATE_LIMIT_MS));
+  const abortCtrlRef    = useRef<AbortController | null>(null);
+
+  // 언마운트 시 진행 중인 fetch 취소
+  useEffect(() => () => { abortCtrlRef.current?.abort(); }, []);
 
   const pushAIMessage = useCallback((content: string) => {
     setMessages(prev => [...prev, { role: "assistant", content }]);
@@ -175,6 +179,11 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
 
+    // 이전 요청 취소 후 새 컨트롤러 생성
+    abortCtrlRef.current?.abort();
+    const ctrl = new AbortController();
+    abortCtrlRef.current = ctrl;
+
     try {
       const history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
 
@@ -182,6 +191,7 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
       const res = await fetch(OPENAI_PROXY, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: ctrl.signal,
         body: JSON.stringify({
           model: "gpt-4o-mini",
           max_tokens: 600,
@@ -221,13 +231,16 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
 
           if (call.function.name === "update_project") {
             const { id, ...fields } = args as { id: number } & Partial<Project>;
-            handlers.updateProject(id, fields);
+            if (!projects.find(p => p.id === id)) { result = `프로젝트 ID:${id} 존재하지 않음`; }
+            else { handlers.updateProject(id, fields); }
           } else if (call.function.name === "add_task") {
             const { project_id, text: taskText } = args as { project_id: number; text: string };
-            handlers.addTask(project_id, taskText);
+            if (!projects.find(p => p.id === project_id)) { result = `프로젝트 ID:${project_id} 존재하지 않음`; }
+            else { handlers.addTask(project_id, taskText); }
           } else if (call.function.name === "toggle_task") {
             const { project_id, task_id } = args as { project_id: number; task_id: string };
-            handlers.toggleTask(project_id, task_id);
+            if (!projects.find(p => p.id === project_id)) { result = `프로젝트 ID:${project_id} 존재하지 않음`; }
+            else { handlers.toggleTask(project_id, task_id); }
           } else if (call.function.name === "create_project") {
             const { name, status = "active", priority = "medium", room = "lab", description, stack = [] } = args as {
               name: string; status?: Project["status"]; priority?: Project["priority"];
@@ -243,8 +256,8 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
             });
           } else if (call.function.name === "delete_project") {
             const { id } = args as { id: number };
-            handlers.deleteProject(id);
-            result = `프로젝트 ID:${id} 삭제 완료`;
+            if (!projects.find(p => p.id === id)) { result = `프로젝트 ID:${id} 존재하지 않음`; }
+            else { handlers.deleteProject(id); result = `프로젝트 ID:${id} 삭제 완료`; }
           } else {
             result = "알 수 없는 도구";
           }
@@ -256,6 +269,7 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
         const res2 = await fetch(OPENAI_PROXY, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: ctrl.signal,
           body: JSON.stringify({
             model: "gpt-4o-mini",
             max_tokens: 300,
@@ -275,6 +289,7 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
         setMessages(prev => [...prev, { role: "assistant", content: reply }]);
       }
     } catch (e) {
+      if ((e as Error).name === "AbortError") return; // unmount or re-send — silent
       const msg = (e as Error).message;
       setMessages(prev => [...prev, { role: "assistant", content: `오류: ${msg}` }]);
       toast("AI 오류", "error", "⚠️");
