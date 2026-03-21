@@ -3,9 +3,23 @@
 // Vercel 환경변수 OPENAI_API_KEY (server-only) 를 사용
 export const config = { runtime: "edge" };
 
+const ALLOWED_MODELS = new Set(["gpt-4o-mini", "gpt-4o"]);
+const MAX_TOKENS_CAP = 1000;
+
 export default async function handler(request: Request): Promise<Response> {
   if (request.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
+  }
+
+  // Origin 체크 — 배포 도메인 또는 로컬 dev만 허용
+  const origin = request.headers.get("origin") ?? "";
+  const allowed =
+    origin === "" ||                              // Edge에서 origin 없는 경우
+    origin.endsWith(".vercel.app") ||
+    origin.startsWith("http://localhost") ||
+    origin.startsWith("http://127.0.0.1");
+  if (!allowed) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
@@ -16,13 +30,27 @@ export default async function handler(request: Request): Promise<Response> {
     );
   }
 
-  let body: unknown;
+  let body: Record<string, unknown>;
   try {
-    body = await request.json();
+    body = await request.json() as Record<string, unknown>;
   } catch {
     return new Response(JSON.stringify({ error: { message: "Invalid JSON body" } }), {
       status: 400, headers: { "Content-Type": "application/json" },
     });
+  }
+
+  // 모델 화이트리스트 — 비싼 모델 지정 차단
+  const model = typeof body.model === "string" ? body.model : "";
+  if (!ALLOWED_MODELS.has(model)) {
+    return new Response(
+      JSON.stringify({ error: { message: `Model not allowed: ${model}` } }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  // max_tokens 상한 강제
+  if (typeof body.max_tokens === "number" && body.max_tokens > MAX_TOKENS_CAP) {
+    body = { ...body, max_tokens: MAX_TOKENS_CAP };
   }
 
   const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
