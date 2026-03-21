@@ -10,6 +10,7 @@
 import { useEffect, useRef } from "react";
 import { AGENTS } from "../data/constants";
 import { PHQ_EVENTS } from "../data/events";
+import { CEO_ANNOUNCEMENTS, AGENT_REACTIONS } from "../data/feedMessages";
 import { loadUserSettings } from "../components/MyPage";
 import { sendDiscord } from "../utils/discord";
 import { usePageVisible } from "./usePageVisible";
@@ -21,20 +22,6 @@ type PostMsgFn   = (msg: Omit<FeedMessage, "id" | "timestamp">, toDiscord?: bool
 
 const AGENT_MAP = Object.fromEntries(AGENTS.map(a => [a.id, a]));
 const AGENT_ACTIVITY_INTERVAL_MS = 5 * 60 * 1000; // 5분
-
-const CEO_ANNOUNCEMENTS: Array<(active: number, total: number) => string> = [
-  (active, total) => `📢 전 직원 여러분, 오늘도 힘차게 시작합시다. 현재 ${active}개 프로젝트 활성화, 총 ${total}개 운영 중입니다.`,
-  (active)        => `📢 오늘 우선순위: 활성 프로젝트 ${active}건 집중 진행. 블로커 발생 시 즉시 에스컬레이션 바랍니다.`,
-  (active, total) => `📢 주간 목표 점검. 총 ${total}건 중 ${active}건 진행 중. 마감 임박 프로젝트 우선 처리 부탁드립니다.`,
-];
-
-const AGENT_REACTIONS: Record<string, string[]> = {
-  CTO:       ["기술 스택 검토가 필요한 항목이 있습니다. 아키텍처 회의 잡겠습니다.", "코드 품질 기준 상향 검토 중입니다. PR 리뷰 강화 예정.", "인프라 현황 파악 완료. 최적화 포인트 3개 발견했습니다."],
-  Lead:      ["팀 조율 사항 공유드립니다. 오늘 스탠드업 11시로 조정.", "스프린트 플래닝 진행 중. 백로그 정리 협조 부탁드립니다.", "협업 이슈 있는 분 DM 주세요. 같이 해결해봅시다."],
-  Senior:    ["개발 완료한 기능 QA 요청드립니다.", "리팩토링 작업 진행 중. 성능 20% 개선 예상됩니다.", "버그 수정 완료. 테스트 커버리지 높였습니다."],
-  Junior:    ["열심히 배우면서 작업 중입니다! 막히는 부분 있으면 도움 요청하겠습니다 💪", "새로운 기능 개발 시작했습니다. 피드백 주시면 반영할게요!", "문서화 작업 병행 중입니다. 나중에 팀에 공유할게요!"],
-  Assistant: ["업무 지원 준비 완료! 필요한 거 있으시면 말씀해주세요.", "미팅 자료 정리 완료했습니다. 공유 드릴까요?", "일정 조율 및 리마인더 세팅 완료."],
-};
 
 /** 에이전트 rank + 이벤트 종류에 따른 프로젝트 이벤트 메시지 생성 */
 function projectEventMsg(agentId: string, event: "task_done" | "progress_up", projectName: string): string {
@@ -141,11 +128,17 @@ export function useFeedAutomation(
 
   // ── AutoPilot 커스텀 이벤트 수신 ────────────────────────────────────
   useEffect(() => {
+    const VALID_CHANNELS = new Set<FeedChannel>(["general", "announcements", "dev", "ops"]);
+
     function onFeedEvent(e: Event) {
-      const { agentId, content, channel } = (e as CustomEvent<{ agentId: string; content: string; channel: string }>).detail;
-      const agent = AGENT_MAP[agentId];
+      if (!(e instanceof CustomEvent)) return;
+      const d = e.detail;
+      // 런타임 검증 — malformed event 방어
+      if (!d || typeof d.agentId !== "string" || typeof d.content !== "string") return;
+      const agent = AGENT_MAP[d.agentId];
       if (!agent) return;
-      addMessage({ agentId: agent.id, agentName: agent.name, agentEmoji: agent.emoji, agentColor: agent.body, channel: (channel as FeedChannel) ?? "general", content, type: "alert" });
+      const channel: FeedChannel = VALID_CHANNELS.has(d.channel) ? d.channel : "general";
+      addMessage({ agentId: agent.id, agentName: agent.name, agentEmoji: agent.emoji, agentColor: agent.body, channel, content: d.content, type: "alert" });
     }
     window.addEventListener(PHQ_EVENTS.FEED, onFeedEvent);
     return () => window.removeEventListener(PHQ_EVENTS.FEED, onFeedEvent);
