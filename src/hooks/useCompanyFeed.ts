@@ -297,6 +297,26 @@ export function useCompanyFeed(projects: Project[]) {
     }, true);
   }, [postMessage]);
 
+  // AutoPilot 이벤트 수신 → Feed 자동 포스팅
+  useEffect(() => {
+    function onAutoPilotEvent(e: Event) {
+      const ev = e as CustomEvent<{ agentId: string; content: string; channel: string }>;
+      const agent = AGENT_MAP[ev.detail.agentId];
+      if (!agent) return;
+      addMessage({
+        agentId: agent.id,
+        agentName: agent.name,
+        agentEmoji: agent.emoji,
+        agentColor: agent.body,
+        channel: (ev.detail.channel as import("./useCompanyFeed").FeedChannel) ?? "general",
+        content: ev.detail.content,
+        type: "alert",
+      });
+    }
+    window.addEventListener("phq-feed", onAutoPilotEvent);
+    return () => window.removeEventListener("phq-feed", onAutoPilotEvent);
+  }, [addMessage]);
+
   const clearFeed = useCallback(() => {
     setMessages([]);
     localStorage.removeItem(FEED_KEY);

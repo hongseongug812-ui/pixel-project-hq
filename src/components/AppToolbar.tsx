@@ -1,16 +1,21 @@
 import { PF, BF } from "../data/constants";
 
+export type SortKey = "lastActivity" | "priority" | "progress" | "name" | "targetDate" | "health";
+
 interface Props {
   viewMode: string;
   filter: string;
   search: string;
+  sort: SortKey;
   showSidebar: boolean;
   onViewMode: (v: string) => void;
   onFilter: (f: string) => void;
   onSearch: (q: string) => void;
+  onSort: (s: SortKey) => void;
   onToggleSidebar: () => void;
   onAdd: () => void;
   onHire: () => void;
+  onStats: () => void;
 }
 
 const VIEW_MODES: [string, string][] = [
@@ -28,9 +33,18 @@ const FILTERS = [
   { k: "complete", l: "DONE" },
 ];
 
+const SORT_OPTIONS: [SortKey, string][] = [
+  ["lastActivity", "최근활동"],
+  ["priority",     "우선순위"],
+  ["progress",     "진행률"],
+  ["name",         "이름"],
+  ["targetDate",   "마감일"],
+  ["health",       "헬스"],
+];
+
 export default function AppToolbar({
-  viewMode, filter, search, showSidebar,
-  onViewMode, onFilter, onSearch, onToggleSidebar, onAdd, onHire,
+  viewMode, filter, search, sort, showSidebar,
+  onViewMode, onFilter, onSearch, onSort, onToggleSidebar, onAdd, onHire, onStats,
 }: Props) {
   return (
     <nav
@@ -87,6 +101,20 @@ export default function AppToolbar({
 
       <div style={{ flex: 1 }} />
 
+      {/* 정렬 (GOD 뷰에서만) */}
+      {viewMode === "god" && (
+        <select
+          value={sort}
+          onChange={e => onSort(e.target.value as SortKey)}
+          aria-label="프로젝트 정렬"
+          style={{ fontFamily: PF, fontSize: 4, color: "#888", background: "#111118", border: "1px solid #1e1e28", padding: "3px 6px", outline: "none", cursor: "pointer" }}
+        >
+          {SORT_OPTIONS.map(([k, l]) => (
+            <option key={k} value={k}>{l}순</option>
+          ))}
+        </select>
+      )}
+
       {/* 검색 (GOD 뷰에서만) */}
       {viewMode === "god" && (
         <input
@@ -98,6 +126,15 @@ export default function AppToolbar({
           style={{ fontFamily: BF, fontSize: 11, color: "#aaa", background: "#111118", border: "1px solid #1e1e28", padding: "3px 8px", outline: "none", width: 160 }}
         />
       )}
+
+      {/* 통계 버튼 */}
+      <button
+        onClick={onStats}
+        aria-label="회사 통계"
+        style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, color: "#f472b6", background: "#0e080e", border: "1px solid #f472b633", padding: "4px 10px" }}
+      >
+        📊 STATS
+      </button>
 
       {/* 채용 버튼 */}
       <button

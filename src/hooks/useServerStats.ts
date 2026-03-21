@@ -6,14 +6,13 @@ const HISTORY_MAX = 20;
 export type PingHistory = Record<string, number[]>;
 
 async function pingServer(url: string): Promise<{ ping: number; status: "up" | "down" }> {
-  const full = url.startsWith("http") ? url : `https://${url}`;
-  const start = Date.now();
+  // 서버사이드 프록시를 통해 실제 HTTP 상태 코드로 판단 (브라우저 CORS 우회)
+  // dev → vite.config.js 미들웨어, prod → api/ping.ts Edge Function
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 5000);
-    await fetch(full, { method: "HEAD", mode: "no-cors", signal: ctrl.signal });
-    clearTimeout(timer);
-    return { ping: Date.now() - start, status: "up" };
+    const res = await fetch(`/api/ping?url=${encodeURIComponent(url)}`, { method: "GET" });
+    if (!res.ok) return { ping: 999, status: "down" };
+    const data = await res.json() as { ping: number; status: "up" | "down" };
+    return { ping: data.ping, status: data.status };
   } catch {
     return { ping: 999, status: "down" };
   }

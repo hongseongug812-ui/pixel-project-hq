@@ -403,9 +403,10 @@ interface LeftSidebarProps {
   onRecheckServer: (url: string) => void;
   onRemoveServer: (projectId: number | string) => void;
   onRemoveAgent?: (id: string) => void;
+  onAlertSettings?: () => void;
 }
 
-export default function LeftSidebar({ projects, agentState, serverStats, pingHistory, pinging, onSelectProject, onRecheckServer, onRemoveServer, onRemoveAgent }: LeftSidebarProps) {
+export default function LeftSidebar({ projects, agentState, serverStats, pingHistory, pinging, onSelectProject, onRecheckServer, onRemoveServer, onRemoveAgent, onAlertSettings }: LeftSidebarProps) {
   const { logs } = useLogs();
   const [sending, setSending] = useState(false);
 
@@ -438,20 +439,32 @@ export default function LeftSidebar({ projects, agentState, serverStats, pingHis
       <AgentStatus agentState={agentState} projects={projects} onRemoveAgent={onRemoveAgent} />
       <ActivityLog logs={logs} />
 
-      {/* Telegram briefing */}
-      <button
-        onClick={handleBriefing}
-        disabled={sending}
-        style={{
-          all: "unset", cursor: sending ? "not-allowed" : "pointer",
-          fontFamily: PF, fontSize: 5, color: isTelegramConfigured ? "#facc15" : "#333",
-          background: "#0c0c14", border: `1px solid ${isTelegramConfigured ? "#facc1533" : "#1a1a28"}`,
-          padding: "6px 8px", textAlign: "center",
-        }}
-        title={isTelegramConfigured ? "텔레그램으로 브리핑 전송" : ".env에 TELEGRAM 키 설정 필요"}
-      >
-        {sending ? "전송 중..." : isTelegramConfigured ? "📨 텔레그램 브리핑" : "📨 텔레그램 (미설정)"}
-      </button>
+      <div style={{ display: "flex", gap: 4 }}>
+        {/* Telegram briefing */}
+        <button
+          onClick={handleBriefing}
+          disabled={sending}
+          style={{
+            all: "unset", cursor: sending ? "not-allowed" : "pointer",
+            fontFamily: PF, fontSize: 5, color: isTelegramConfigured ? "#facc15" : "#333",
+            background: "#0c0c14", border: `1px solid ${isTelegramConfigured ? "#facc1533" : "#1a1a28"}`,
+            padding: "6px 8px", textAlign: "center", flex: 1,
+          }}
+          title={isTelegramConfigured ? "텔레그램으로 브리핑 전송" : "알림 설정 필요"}
+        >
+          {sending ? "전송 중..." : isTelegramConfigured ? "📨 브리핑" : "📨 브리핑"}
+        </button>
+        {/* 알림 설정 */}
+        <button
+          onClick={onAlertSettings}
+          title="알림 채널 설정 (Telegram / Discord)"
+          style={{
+            all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 7,
+            color: "#facc15", background: "#0c0c14", border: "1px solid #facc1533",
+            padding: "6px 10px", textAlign: "center",
+          }}
+        >🔔</button>
+      </div>
     </div>
   );
 }

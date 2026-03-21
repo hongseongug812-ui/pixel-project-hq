@@ -8,6 +8,9 @@ export interface Task {
   id: string;
   text: string;
   done: boolean;
+  assignee?: string | null;   // agent id
+  priority?: "high" | "medium" | "low" | null;
+  dueDate?: string | null;    // YYYY-MM-DD
 }
 
 export interface Project {

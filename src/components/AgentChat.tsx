@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { PF, BF } from "../data/constants";
-import type { Agent } from "../types";
+import { makeRateLimiter } from "../utils/security";
+import type { Agent, Project } from "../types";
 
 const RANK_COLOR: Record<string, string> = {
   CEO: "#facc15", CTO: "#f97316", Lead: "#a78bfa", Senior: "#4ade80", Junior: "#60a5fa", Assistant: "#f472b6",
@@ -14,7 +15,9 @@ const GPT_MODEL: Record<string, string> = {
   "o1-mini": "o1-mini",
 };
 
+const OPENAI_PROXY = "/api/openai";
 const MAX_HISTORY = 40;   // 저장할 최대 메시지 수
+const RATE_LIMIT_MS = 1500;
 const SUMMARY_KEY = (id: string) => `phq_agent_summary_${id}`; // 요약 캐시 키
 const SUMMARIZE_AFTER = 12; // 이 턴 이상이면 앞부분 요약 주입
 
@@ -22,6 +25,7 @@ interface Message { role: "user" | "assistant"; content: string; }
 
 interface Props {
   agent: Agent;
+  projects?: Project[];
   onClose: () => void;
 }
 
@@ -41,7 +45,8 @@ function saveHistory(agentId: string, msgs: Message[]) {
   } catch { /* ignore */ }
 }
 
-export default function AgentChat({ agent, onClose }: Props) {
+export default function AgentChat({ agent, projects = [], onClose }: Props) {
+  const rateLimitRef = useRef(makeRateLimiter(RATE_LIMIT_MS));
   const greeting: Message = {
     role: "assistant",
     content: `${agent.emoji} 안녕하세요. 저는 ${agent.name}입니다. [${agent.rank}]\n${agent.personality.split(". ")[0]}.`,
@@ -72,29 +77,32 @@ export default function AgentChat({ agent, onClose }: Props) {
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
+    if (!rateLimitRef.current()) return; // 1.5초 rate limit
+
     setInput("");
     const userMsg: Message = { role: "user", content: text };
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
 
-    const API_KEY = (import.meta.env.VITE_OPENAI_API_KEY as string | undefined)?.trim();
-    if (!API_KEY) {
-      setMessages(prev => [...prev, { role: "assistant", content: "⚠️ OpenAI API 키가 없습니다." }]);
-      setLoading(false);
-      return;
-    }
-
     // 오래된 대화 요약 로드 (캐시)
     let cachedSummary = "";
     try { cachedSummary = localStorage.getItem(SUMMARY_KEY(agent.id)) ?? ""; } catch { /* ignore */ }
 
+    // 담당 프로젝트 컨텍스트 빌드
+    const assignedProject = projects.find(p => p.assignedAgentId === agent.id);
+    const projectContext = assignedProject
+      ? `\n\n=== 담당 프로젝트 ===\n이름: ${assignedProject.name}\n상태: ${assignedProject.status} | 진행률: ${assignedProject.progress}%\n미완료 태스크: ${assignedProject.tasks.filter(t => !t.done).length}건\n설명: ${assignedProject.description || "없음"}`
+      : projects.length > 0
+        ? `\n\n=== 전체 프로젝트 현황 ===\n${projects.slice(0, 5).map(p => `- [${p.name}] ${p.status} ${p.progress}%`).join("\n")}`
+        : "";
+
     // 대화가 SUMMARIZE_AFTER 턴 이상이면 앞부분 요약 생성 (비동기, 백그라운드)
     const allMsgs = [...messages, userMsg];
-    if (allMsgs.length > SUMMARIZE_AFTER && !cachedSummary && API_KEY) {
+    if (allMsgs.length > SUMMARIZE_AFTER && !cachedSummary) {
       const toSummarize = allMsgs.slice(0, allMsgs.length - 6);
-      fetch("https://api.openai.com/v1/chat/completions", {
+      fetch(OPENAI_PROXY, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "gpt-4o-mini", max_tokens: 200,
           messages: [
@@ -113,7 +121,7 @@ export default function AgentChat({ agent, onClose }: Props) {
 
     const systemPrompt = `당신은 Pixel Project HQ의 ${agent.name}입니다.
 계급: ${agent.rank} | 역할: ${agent.role} | AI 모델: ${agent.aiModel}
-성격: ${agent.personality}${cachedSummary ? `\n\n=== 이전 대화 요약 ===\n${cachedSummary}` : ""}
+성격: ${agent.personality}${projectContext}${cachedSummary ? `\n\n=== 이전 대화 요약 ===\n${cachedSummary}` : ""}
 
 계급과 성격에 맞는 어조로 한국어로 답변하세요.
 - CEO는 전략적이고 결단력 있게
@@ -129,9 +137,9 @@ export default function AgentChat({ agent, onClose }: Props) {
       // 최근 10턴만 컨텍스트로 사용 (요약이 있으면 앞부분 생략)
       const recentMsgs = cachedSummary ? allMsgs.slice(-10) : allMsgs;
       const history = recentMsgs.map(m => ({ role: m.role, content: m.content }));
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      const res = await fetch(OPENAI_PROXY, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model,
           max_tokens: 400,

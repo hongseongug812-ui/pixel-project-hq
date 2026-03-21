@@ -380,18 +380,26 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
             <span style={{ color: rm.color }}>{done}/{p.tasks.length}</span>
           </div>
         </div>
-        {p.tasks.map(t => (
-          <button key={t.id} onClick={() => onToggle(p.id, t.id)} style={{
-            all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
-            padding: "2px 4px", marginBottom: 1, width: "100%",
-            background: t.done ? "#080e08" : "#0c0a0a", border: `1px solid ${t.done ? "#4ade8018" : "#1a1a22"}`,
-          }}>
-            <div style={{ width: 7, height: 7, border: `1px solid ${t.done ? "#4ade80" : "#333"}`, background: "#0a0a0c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              {t.done && <span style={{ color: "#4ade80", fontSize: 5, fontFamily: PF }}>✓</span>}
+        {p.tasks.map(t => {
+          const taskAgent = t.assignee ? allAgents.find(a => a.id === t.assignee) : null;
+          const pc = t.priority === "high" ? "#ef4444" : t.priority === "medium" ? "#facc15" : t.priority === "low" ? "#4ade80" : null;
+          const overdue = t.dueDate && !t.done && new Date(t.dueDate) < new Date();
+          return (
+            <div key={t.id} style={{ marginBottom: 2, background: t.done ? "#080e08" : "#0c0a0a", border: `1px solid ${t.done ? "#4ade8018" : overdue ? "#ef444433" : "#1a1a22"}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 4px" }}>
+                <button onClick={() => onToggle(p.id, t.id)} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, flex: 1, minWidth: 0 }}>
+                  <div style={{ width: 7, height: 7, border: `1px solid ${t.done ? "#4ade80" : "#333"}`, background: "#0a0a0c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {t.done && <span style={{ color: "#4ade80", fontSize: 5, fontFamily: PF }}>✓</span>}
+                  </div>
+                  {pc && <div style={{ width: 4, height: 4, borderRadius: "50%", background: pc, flexShrink: 0 }} />}
+                  <span style={{ fontFamily: BF, fontSize: 10, color: t.done ? "#4a8a4a" : overdue ? "#ef4444" : "#999", textDecoration: t.done ? "line-through" : "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.text}</span>
+                </button>
+                {taskAgent && <span title={taskAgent.name} style={{ fontSize: 9, flexShrink: 0 }}>{taskAgent.emoji}</span>}
+                {t.dueDate && <span style={{ fontFamily: PF, fontSize: 3, color: overdue ? "#ef4444" : "#444", flexShrink: 0 }}>{t.dueDate.slice(5)}</span>}
+              </div>
             </div>
-            <span style={{ fontFamily: BF, fontSize: 10, color: t.done ? "#4a8a4a" : "#999", textDecoration: t.done ? "line-through" : "none" }}>{t.text}</span>
-          </button>
-        ))}
+          );
+        })}
         <div style={{ display: "flex", gap: 3, marginTop: 4 }}>
           <input value={newTask} onChange={e => setNewTask(e.target.value)} onKeyDown={e => e.key === "Enter" && submitTask()}
             placeholder="+ 새 태스크..." style={{ flex: 1, fontFamily: BF, fontSize: 10, color: "#666", background: "#0a0a0c", border: "1px solid #1a1a22", padding: "2px 5px", outline: "none" }} />

@@ -57,6 +57,7 @@ export function useAutoPilot(
           update(p.id, { status: "paused" });
           addT(p.id, `🔴 서버 장애: ${p.serverUrl} 즉시 점검 필요`);
           log(`${p.name} 서버 다운 → 자동 일시중단`, hex.emoji, hex.body, hex.name);
+          window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: hex.id, content: `🔴 [${p.name}] 서버 장애 감지! ${p.serverUrl} — 즉시 점검에 들어갑니다.`, channel: "ops" } }));
         }
 
         // 서버 복구 → 자동 재개 (autopilot이 중단시킨 것만)
@@ -64,6 +65,7 @@ export function useAutoPilot(
           autoPaused.delete(p.id);
           update(p.id, { status: "active" });
           log(`${p.name} 서버 복구 → 자동 재개`, hex.emoji, hex.body, hex.name);
+          window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: hex.id, content: `✅ [${p.name}] 서버 복구 확인. 자동 재개 처리했습니다.`, channel: "ops" } }));
         }
       });
     }
@@ -93,6 +95,7 @@ export function useAutoPilot(
         update(p.id, { priority: "high" });
         addT(p.id, `⚠️ ${days}일 방치 — 즉시 재개 필요`);
         log(`${p.name} ${days}일 방치 → priority HIGH 격상`, sage.emoji, sage.body, sage.name);
+        window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: sage.id, content: `⚠️ [${p.name}] ${days}일째 업데이트 없음. 팀 전체 주의 요망 — 즉시 상태 확인 부탁드립니다.`, channel: "general" } }));
       });
 
       // Rex (CEO): 마감 임박 전사 긴급 지시
@@ -105,6 +108,7 @@ export function useAutoPilot(
         done.current.add(key);
         update(p.id, { priority: "high" });
         log(`${p.name} 마감 D-${daysLeft} — 전사 긴급 지정`, rex.emoji, rex.body, rex.name);
+        window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: rex.id, content: `📢 [${p.name}] 마감 D-${daysLeft}. 전사 긴급 우선순위로 격상합니다. 모든 팀원은 해당 프로젝트에 집중해주세요.`, channel: "announcements" } }));
       });
 
       // Nova (CTO): 장기 정체 기술 부채 경고

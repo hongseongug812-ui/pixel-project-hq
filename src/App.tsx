@@ -37,8 +37,11 @@ import AppHeader          from "./components/AppHeader";
 import AppToolbar         from "./components/AppToolbar";
 import CompanyFeed        from "./components/CompanyFeed";
 import HireModal          from "./components/HireModal";
+import StatsView          from "./components/StatsView";
+import AlertSettingsModal from "./components/AlertSettingsModal";
 
 import type { Project } from "./types";
+import type { SortKey } from "./components/AppToolbar";
 
 export default function App() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -49,7 +52,10 @@ export default function App() {
   const [filter,       setFilter]     = useState("all");
   const [search,       setSearch]     = useState("");
   const [viewMode,     setViewMode]   = useState("god");
+  const [sort,         setSort]        = useState<SortKey>("lastActivity");
   const [showAdd,      setShowAdd]    = useState(false);
+  const [showStats,    setShowStats]  = useState(false);
+  const [showAlerts,   setShowAlerts] = useState(false);
   const [showSidebar,  setShowSidebar] = useState(true);
   const [showMyPage,   setShowMyPage]  = useState(false);
   const [aiChatOpen,   setAiChatOpen]  = useState(false);
@@ -137,13 +143,24 @@ export default function App() {
   }, [updateProject, projects, pushLog, toast]);
 
   // ── derived state ─────────────────────────────────────────────────────
+  const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return projects.filter(p =>
+    const base = projects.filter(p =>
       (filter === "all" || p.status === filter) &&
       (!q || p.name.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q))
     );
-  }, [projects, filter, search]);
+    return [...base].sort((a, b) => {
+      switch (sort) {
+        case "priority":     return (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2);
+        case "progress":     return b.progress - a.progress;
+        case "name":         return a.name.localeCompare(b.name, "ko");
+        case "targetDate":   return (a.targetDate ?? "9999") < (b.targetDate ?? "9999") ? -1 : 1;
+        case "health":       return b.progress - a.progress; // approximation without server stats here
+        default:             return (b.lastActivity ?? "").localeCompare(a.lastActivity ?? ""); // lastActivity
+      }
+    });
+  }, [projects, filter, search, sort]);
 
   const grouped = useMemo(() => {
     const g: Record<string, Project[]> = {};
@@ -239,13 +256,16 @@ export default function App() {
         viewMode={viewMode}
         filter={filter}
         search={search}
+        sort={sort}
         showSidebar={showSidebar}
         onViewMode={setViewMode}
         onFilter={setFilter}
         onSearch={setSearch}
+        onSort={setSort}
         onToggleSidebar={() => setShowSidebar(s => !s)}
         onAdd={() => { setShowAdd(true); setFileAnalysis(null); }}
         onHire={() => setShowHire(true)}
+        onStats={() => setShowStats(true)}
       />
 
       {/* Main */}
@@ -262,6 +282,7 @@ export default function App() {
               onRecheckServer={recheckServer}
               onRemoveServer={id => setSrv(id, "")}
               onRemoveAgent={removeAgent}
+              onAlertSettings={() => setShowAlerts(true)}
             />
           </div>
         )}
@@ -324,9 +345,11 @@ export default function App() {
       )}
       <Toast toasts={toasts} onUndo={handleUndo} />
       <AIChat messages={aiMessages} loading={aiLoading} onSend={aiSend} onClear={aiClear} onOpenChange={setAiChatOpen} />
-      {agentChatId && (() => { const ag = agentState.find(a => a.id === agentChatId); return ag ? <AgentChat agent={ag} onClose={() => setAgentChatId(null)} /> : null; })()}
+      {agentChatId && (() => { const ag = agentState.find(a => a.id === agentChatId); return ag ? <AgentChat agent={ag} projects={projects} onClose={() => setAgentChatId(null)} /> : null; })()}
       {showMyPage && <MyPage onClose={() => { setShowMyPage(false); window.dispatchEvent(new Event("phq-avatar-updated")); }} />}
       {showHire && <HireModal onHire={agent => { addAgent(agent); toast(`${agent.emoji} ${agent.name} 채용 완료!`, "success", "🤖"); setShowHire(false); }} onClose={() => setShowHire(false)} />}
+      {showStats && <StatsView projects={projects} agentState={agentState} serverStats={serverStats} onClose={() => setShowStats(false)} onSelect={id => { setSelIdState(id); setViewMode("god"); setShowStats(false); }} />}
+      {showAlerts && <AlertSettingsModal onClose={() => setShowAlerts(false)} />}
     </div>
   );
 }

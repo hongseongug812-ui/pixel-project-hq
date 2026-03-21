@@ -270,6 +270,11 @@ export default function OfficeRoom({ roomCfg, projects, agents, selectedId, isMe
       <div style={{ background: rm.wallColor, padding: "4px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", borderRadius: "0 0 4px 4px" }}>
         <span style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 7, color: rm.color, letterSpacing: 1 }}>{rm.label}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {agents.length > 0 && (
+            <span style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 4, color: "#444" }} title="캐릭터 클릭 시 AI 채팅">
+              💬 클릭
+            </span>
+          )}
           {isServerRoom && projects.filter(p => p.serverUrl).length > 0 && (
             <span style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 5, color: "#4ade80" }}>
               ● {projects.filter(p => p.serverUrl).length} LIVE

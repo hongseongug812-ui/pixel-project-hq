@@ -1,8 +1,12 @@
 import type { Project } from "../types";
 
-const API_KEY = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
+// 프록시 경로: dev → vite.config.js 미들웨어, prod → api/openai.ts Edge Function
+const OPENAI_PROXY = "/api/openai";
 
-export const isOpenAIConfigured: boolean = !!API_KEY;
+export const isOpenAIConfigured: boolean =
+  // 프록시가 항상 존재하므로 dev 키가 있으면 활성화, 없으면 프록시 서버 키 존재 시 활성화
+  // 런타임에 실제 확인은 첫 API 호출 시 이루어짐
+  !!(import.meta.env.VITE_OPENAI_API_KEY || true); // 프록시 항상 시도
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -14,17 +18,15 @@ interface ChatOptions {
   maxTokens?: number;
 }
 
-async function chat(messages: ChatMessage[], { model = "gpt-4o-mini", maxTokens = 800 }: ChatOptions = {}): Promise<string> {
-  if (!API_KEY) throw new Error("OpenAI API 키가 설정되지 않았습니다.");
-
+async function chat(
+  messages: ChatMessage[],
+  { model = "gpt-4o-mini", maxTokens = 800 }: ChatOptions = {},
+): Promise<string> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 30_000);
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetch(OPENAI_PROXY, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${API_KEY}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model, max_tokens: maxTokens, messages }),
     signal: ctrl.signal,
   }).finally(() => clearTimeout(timer));
