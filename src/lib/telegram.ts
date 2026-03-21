@@ -9,7 +9,7 @@ export async function sendTelegram(text: string): Promise<boolean> {
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: CHAT_ID, text, parse_mode: "HTML" }),
+      body: JSON.stringify({ chat_id: CHAT_ID, text }),
     });
     return res.ok;
   } catch {
@@ -33,13 +33,13 @@ export function buildDailyBriefing(projects: Project[]): string {
 
   const date = new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
 
-  let msg = `🏢 <b>Pixel HQ 일일 브리핑</b> — ${date}\n`;
+  let msg = `🏢 Pixel HQ 일일 브리핑 — ${date}\n`;
   msg += `━━━━━━━━━━━━━━━━\n`;
   msg += `📊 전체 ${projects.length}개 | 진행 ${active.length}개 | 완료 ${done.length}개 | 중단 ${paused.length}개\n`;
   msg += `📈 진행 중 평균 진행률: ${avgProgress}%\n\n`;
 
   if (active.length) {
-    msg += `<b>🔥 진행 중</b>\n`;
+    msg += `🔥 진행 중\n`;
     active.slice(0, 5).forEach(p => {
       const bar = "█".repeat(Math.round(p.progress / 10)) + "░".repeat(10 - Math.round(p.progress / 10));
       msg += `• ${p.name} [${bar}] ${p.progress}%\n`;
@@ -48,7 +48,7 @@ export function buildDailyBriefing(projects: Project[]): string {
   }
 
   if (neglected.length) {
-    msg += `<b>⚠️ 방치 중 (3일+)</b>\n`;
+    msg += `⚠️ 방치 중 (3일+)\n`;
     neglected.forEach(p => {
       const days = Math.floor((Date.now() - new Date(p.lastActivity).getTime()) / 864e5);
       msg += `• ${p.name} — ${days}일째 업데이트 없음\n`;
@@ -58,7 +58,7 @@ export function buildDailyBriefing(projects: Project[]): string {
 
   const highPriority = active.filter(p => p.priority === "high");
   if (highPriority.length) {
-    msg += `<b>🚨 HIGH 우선순위</b>\n`;
+    msg += `🚨 HIGH 우선순위\n`;
     highPriority.forEach(p => { msg += `• ${p.name}\n`; });
   }
 
