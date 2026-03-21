@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import * as db from "../lib/db";
+import { readStorage, isObjectArray } from "../utils/storage";
 import type { Project, ToastItem } from "../types";
 
 type ToastFn = (msg: string, type?: ToastItem["type"], emoji?: string) => void;
@@ -16,10 +17,8 @@ export function useMigration(
   const [migrateBanner, setMigrateBanner] = useState(false);
 
   const checkLocalData = useCallback(() => {
-    const local = localStorage.getItem(KEY);
-    try {
-      if (local && JSON.parse(local).length > 0) setMigrateBanner(true);
-    } catch { /* invalid json */ }
+    const local = readStorage(KEY, isObjectArray, []);
+    if (local.length > 0) setMigrateBanner(true);
   }, []);
 
   const handleMigrate = useCallback(async () => {

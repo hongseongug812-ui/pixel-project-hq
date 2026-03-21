@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { PF, BF } from "../data/constants";
 import { makeRateLimiter } from "../utils/security";
+import { readStorage, isObjectArray } from "../utils/storage";
 import type { Agent, Project } from "../types";
 
 const RANK_COLOR: Record<string, string> = {
@@ -32,11 +33,7 @@ interface Props {
 function historyKey(agentId: string) { return `phq_agent_chat_${agentId}`; }
 
 function loadHistory(agentId: string): Message[] {
-  try {
-    const raw = localStorage.getItem(historyKey(agentId));
-    if (raw) return JSON.parse(raw) as Message[];
-  } catch { /* ignore */ }
-  return [];
+  return readStorage(historyKey(agentId), isObjectArray, []) as Message[];
 }
 
 function saveHistory(agentId: string, msgs: Message[]) {

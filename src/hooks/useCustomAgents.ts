@@ -1,15 +1,12 @@
 import { useState, useCallback } from "react";
 import { AGENTS } from "../data/constants";
+import { readStorage, isObjectArray } from "../utils/storage";
 import type { Agent } from "../types";
 
 const CUSTOM_AGENTS_KEY = "phq_custom_agents";
 
 export function loadCustomAgents(): Agent[] {
-  try {
-    const raw = localStorage.getItem(CUSTOM_AGENTS_KEY);
-    if (raw) return JSON.parse(raw) as Agent[];
-  } catch { /* ignore */ }
-  return [];
+  return readStorage(CUSTOM_AGENTS_KEY, isObjectArray, []) as Agent[];
 }
 
 function saveCustomAgents(agents: Agent[]) {

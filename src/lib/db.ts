@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { readStorage, isObjectArray } from "../utils/storage";
 import type { Project, Task, ProjectStatus, ProjectPriority, RoomKey } from "../types";
 
 // ── 허용 값 집합 (DB 행 검증에 사용) ─────────────────────────────────
@@ -149,11 +150,8 @@ export async function deleteProject(id: string | number): Promise<void> {
 // ── localStorage 데이터 Supabase로 마이그레이션 ─────────────────────
 export async function migrateFromLocalStorage(userId: string): Promise<number> {
   try {
-    const raw = localStorage.getItem("phq6");
-    if (!raw) return 0;
-    const projects: Partial<Project>[] = JSON.parse(raw);
-    if (!projects.length) return 0;
-    if (!supabase) return 0;
+    const projects = readStorage("phq6", isObjectArray, []) as Partial<Project>[];
+    if (!projects.length || !supabase) return 0;
 
     const rows = projects.map(p => projectToRow(p, userId));
     const { error } = await supabase.from("projects").insert(rows);

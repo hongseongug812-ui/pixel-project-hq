@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { AGENTS } from "../data/constants";
 import { PF, BF } from "../data/constants";
+import { readStorage, isPlainObject } from "../utils/storage";
 
 export const MYPAGE_STORAGE_KEY = "phq_user_settings";
 export const AVATAR_STORAGE_KEY = "phq_my_avatar";
@@ -18,19 +19,13 @@ export interface MyAvatar {
 }
 
 export function loadUserSettings(): UserSettings {
-  try {
-    const raw = localStorage.getItem(MYPAGE_STORAGE_KEY);
-    if (raw) return { ...defaultSettings(), ...JSON.parse(raw) };
-  } catch { /* ignore */ }
-  return defaultSettings();
+  const stored = readStorage(MYPAGE_STORAGE_KEY, isPlainObject, {});
+  return { ...defaultSettings(), ...stored } as UserSettings;
 }
 
 export function loadMyAvatar(): MyAvatar {
-  try {
-    const raw = localStorage.getItem(AVATAR_STORAGE_KEY);
-    if (raw) return { ...defaultAvatar(), ...JSON.parse(raw) };
-  } catch { /* ignore */ }
-  return defaultAvatar();
+  const stored = readStorage(AVATAR_STORAGE_KEY, isPlainObject, {});
+  return { ...defaultAvatar(), ...stored } as MyAvatar;
 }
 
 function defaultSettings(): UserSettings {
