@@ -16,6 +16,9 @@ vi.mock("../components/MyPage", () => ({
   loadUserSettings: () => ({ discordWebhook: "" }),
 }));
 
+// Real agent IDs from src/data/constants.ts
+const AGENT_IDS = { CEO: "a1", CTO: "a2", LEAD: "a3", SENIOR: "a4", JUNIOR: "a5" };
+
 function makeCallbacks() {
   const addMessage = vi.fn((msg: Omit<FeedMessage, "id" | "timestamp">): FeedMessage => ({
     ...msg, id: `test_${Date.now()}`, timestamp: Date.now(),
@@ -29,19 +32,20 @@ function makeCallbacks() {
 describe("useFeedAutomation — AutoPilot event listener", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("listens for phq-feed events and calls addMessage", () => {
+  it("calls addMessage with correct content when phq-feed event fires with valid agentId", () => {
     const { addMessage, postMessage } = makeCallbacks();
     renderHook(() => useFeedAutomation([makeProject()], addMessage, postMessage));
 
     window.dispatchEvent(new CustomEvent("phq-feed", {
-      detail: { agentId: "agent-cto", content: "서버 점검 중", channel: "ops" },
+      detail: { agentId: AGENT_IDS.CTO, content: "서버 점검 중", channel: "ops" },
     }));
 
-    // AGENTS must have an entry with id "agent-cto" for this to fire
-    // We test that the listener is registered and fires without throwing
-    expect(addMessage).toHaveBeenCalledTimes(
-      addMessage.mock.calls.length // flexible: depends on AGENTS data
-    );
+    expect(addMessage).toHaveBeenCalledTimes(1);
+    const msg = addMessage.mock.calls[0][0];
+    expect(msg.content).toBe("서버 점검 중");
+    expect(msg.channel).toBe("ops");
+    expect(msg.type).toBe("alert");
+    expect(msg.agentId).toBe(AGENT_IDS.CTO);
   });
 
   it("ignores phq-feed events with unknown agentId", () => {
@@ -65,10 +69,22 @@ describe("useFeedAutomation — AutoPilot event listener", () => {
     addMessage.mockClear();
 
     window.dispatchEvent(new CustomEvent("phq-feed", {
-      detail: { agentId: "agent-cto", content: "after unmount", channel: "ops" },
+      detail: { agentId: AGENT_IDS.CTO, content: "after unmount", channel: "ops" },
     }));
 
     expect(addMessage).not.toHaveBeenCalled();
+  });
+
+  it("defaults to 'general' channel when channel is missing from event detail", () => {
+    const { addMessage, postMessage } = makeCallbacks();
+    renderHook(() => useFeedAutomation([makeProject()], addMessage, postMessage));
+
+    window.dispatchEvent(new CustomEvent("phq-feed", {
+      detail: { agentId: AGENT_IDS.SENIOR, content: "no channel here" },
+    }));
+
+    expect(addMessage).toHaveBeenCalledTimes(1);
+    expect(addMessage.mock.calls[0][0].channel).toBe("general");
   });
 });
 
@@ -83,59 +99,74 @@ describe("useFeedAutomation — task completion detection", () => {
     vi.clearAllMocks();
   });
 
-  it("calls addMessage when task is completed", async () => {
+  it("calls addMessage when assigned agent's task is completed", () => {
     const { addMessage, postMessage } = makeCallbacks();
-    const projectWithAgent = makeProject({
+    const projectBefore = makeProject({
       id: 1,
-      assignedAgentId: "agent-senior",
-      tasks: [{ id: "1", text: "write tests", done: false }],
+      assignedAgentId: AGENT_IDS.SENIOR,
+      tasks: [{ id: "t1", text: "write tests", done: false }],
     });
 
     const { rerender } = renderHook(
       ({ projects }) => useFeedAutomation(projects, addMessage, postMessage),
-      { initialProps: { projects: [projectWithAgent] } }
-    );
-
-    addMessage.mockClear(); // clear initial calls
-
-    const projectTaskDone = makeProject({
-      id: 1,
-      assignedAgentId: "agent-senior",
-      tasks: [{ id: "1", text: "write tests", done: true }],
-    });
-
-    rerender({ projects: [projectTaskDone] });
-
-    // addMessage should be called if agent-senior is in AGENTS
-    // The important thing is it doesn't throw
-    expect(addMessage).toBeDefined();
-  });
-
-  it("calls addMessage when progress increases by 10+", () => {
-    const { addMessage, postMessage } = makeCallbacks();
-    const projectLow = makeProject({
-      id: 1,
-      progress: 30,
-      assignedAgentId: "agent-cto",
-    });
-
-    const { rerender } = renderHook(
-      ({ projects }) => useFeedAutomation(projects, addMessage, postMessage),
-      { initialProps: { projects: [projectLow] } }
+      { initialProps: { projects: [projectBefore] } }
     );
 
     addMessage.mockClear();
 
-    const projectHigh = makeProject({
+    const projectAfter = makeProject({
       id: 1,
-      progress: 50,
-      assignedAgentId: "agent-cto",
+      assignedAgentId: AGENT_IDS.SENIOR,
+      tasks: [{ id: "t1", text: "write tests", done: true }],
     });
 
-    rerender({ projects: [projectHigh] });
+    rerender({ projects: [projectAfter] });
 
-    // Should call addMessage for progress update if agent exists
-    expect(addMessage).toBeDefined();
+    expect(addMessage).toHaveBeenCalledTimes(1);
+    const msg = addMessage.mock.calls[0][0];
+    expect(msg.channel).toBe("dev");
+    expect(msg.content).toContain("Test Project");
+  });
+
+  it("calls addMessage when progress increases by 10+", () => {
+    const { addMessage, postMessage } = makeCallbacks();
+
+    const { rerender } = renderHook(
+      ({ projects }) => useFeedAutomation(projects, addMessage, postMessage),
+      { initialProps: { projects: [makeProject({ id: 1, progress: 30, assignedAgentId: AGENT_IDS.CTO })] } }
+    );
+
+    addMessage.mockClear();
+
+    // 9 증가 → 미발동
+    rerender({ projects: [makeProject({ id: 1, progress: 39, assignedAgentId: AGENT_IDS.CTO })] });
+    expect(addMessage).not.toHaveBeenCalled();
+
+    addMessage.mockClear();
+
+    // 10 이상 증가 → 발동
+    rerender({ projects: [makeProject({ id: 1, progress: 50, assignedAgentId: AGENT_IDS.CTO })] });
+    expect(addMessage).toHaveBeenCalledTimes(1);
+    expect(addMessage.mock.calls[0][0].channel).toBe("dev");
+  });
+
+  it("does not call addMessage when no assigned agent", () => {
+    const { addMessage, postMessage } = makeCallbacks();
+    const projectBefore = makeProject({
+      id: 1,
+      assignedAgentId: null,
+      tasks: [{ id: "t1", text: "task", done: false }],
+    });
+
+    const { rerender } = renderHook(
+      ({ projects }) => useFeedAutomation(projects, addMessage, postMessage),
+      { initialProps: { projects: [projectBefore] } }
+    );
+    addMessage.mockClear();
+
+    rerender({ projects: [makeProject({ id: 1, assignedAgentId: null, tasks: [{ id: "t1", text: "task", done: true }] })] });
+
+    expect(addMessage).not.toHaveBeenCalled();
   });
 });
 
@@ -168,14 +199,17 @@ describe("useFeedAutomation — CEO announcement", () => {
     expect(postMessage).not.toHaveBeenCalled();
   });
 
-  it("fires CEO announcement after 3s delay when not announced today", async () => {
+  it("fires CEO announcement after 3s with correct channel and type", async () => {
     const { addMessage, postMessage } = makeCallbacks();
     renderHook(() => useFeedAutomation([makeProject()], addMessage, postMessage));
     await vi.advanceTimersByTimeAsync(3100);
+
     expect(postMessage).toHaveBeenCalledTimes(1);
     const call = postMessage.mock.calls[0][0];
     expect(call.channel).toBe("announcements");
     expect(call.type).toBe("announcement");
+    expect(call.agentId).toBe(AGENT_IDS.CEO);
+    expect(call.content).toMatch(/프로젝트/);
   });
 
   it("marks announcement as done in localStorage", async () => {
@@ -185,5 +219,42 @@ describe("useFeedAutomation — CEO announcement", () => {
 
     const todayKey = `phq_ceo_announced_${new Date().toDateString()}`;
     expect(localStorage.getItem(todayKey)).toBe("1");
+  });
+
+  it("does not announce twice when re-rendered with same project count", async () => {
+    const { addMessage, postMessage } = makeCallbacks();
+    const p = makeProject();
+    const { rerender } = renderHook(
+      ({ projects }) => useFeedAutomation(projects, addMessage, postMessage),
+      { initialProps: { projects: [p] } }
+    );
+    await vi.advanceTimersByTimeAsync(3100);
+    expect(postMessage).toHaveBeenCalledTimes(1);
+
+    // 같은 개수로 재렌더 — length 기반 신규 프로젝트 감지 미발동
+    rerender({ projects: [makeProject({ id: 1, progress: 80 })] });
+    await vi.advanceTimersByTimeAsync(3100);
+    // announcedTodayRef.current === true → 두 번째 공지 없음
+    expect(postMessage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useFeedAutomation — new project detection", () => {
+  afterEach(() => vi.clearAllMocks());
+
+  it("calls postMessage when a new project is added", () => {
+    const { addMessage, postMessage } = makeCallbacks();
+    const { rerender } = renderHook(
+      ({ projects }) => useFeedAutomation(projects, addMessage, postMessage),
+      { initialProps: { projects: [makeProject({ id: 1 })] } }
+    );
+
+    postMessage.mockClear();
+    rerender({ projects: [makeProject({ id: 2, name: "New App" }), makeProject({ id: 1 })] });
+
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    const msg = postMessage.mock.calls[0][0];
+    expect(msg.content).toContain("New App");
+    expect(msg.channel).toBe("general");
   });
 });

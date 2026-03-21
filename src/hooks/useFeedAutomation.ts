@@ -9,6 +9,7 @@
  */
 import { useEffect, useRef } from "react";
 import { AGENTS } from "../data/constants";
+import { PHQ_EVENTS } from "../data/events";
 import { loadUserSettings } from "../components/MyPage";
 import { sendDiscord } from "../utils/discord";
 import { usePageVisible } from "./usePageVisible";
@@ -146,7 +147,7 @@ export function useFeedAutomation(
       if (!agent) return;
       addMessage({ agentId: agent.id, agentName: agent.name, agentEmoji: agent.emoji, agentColor: agent.body, channel: (channel as FeedChannel) ?? "general", content, type: "alert" });
     }
-    window.addEventListener("phq-feed", onFeedEvent);
-    return () => window.removeEventListener("phq-feed", onFeedEvent);
+    window.addEventListener(PHQ_EVENTS.FEED, onFeedEvent);
+    return () => window.removeEventListener(PHQ_EVENTS.FEED, onFeedEvent);
   }, [addMessage]);
 }

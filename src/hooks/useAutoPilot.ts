@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { AGENTS } from "../data/constants";
+import { PHQ_EVENTS } from "../data/events";
 import { useLogs } from "../contexts/LogsContext";
 import { daysSince } from "../utils/helpers";
 import type { Project, ServerStatsMap } from "../types";
@@ -62,7 +63,7 @@ export function useAutoPilot(
           addT(p.id, `🔴 서버 장애: ${p.serverUrl} 즉시 점검 필요`);
           if (hex) {
             log(`${p.name} 서버 다운 → 자동 일시중단`, hex.emoji, hex.body, hex.name);
-            window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: hex.id, content: `🔴 [${p.name}] 서버 장애 감지! ${p.serverUrl} — 즉시 점검에 들어갑니다.`, channel: "ops" } }));
+            window.dispatchEvent(new CustomEvent(PHQ_EVENTS.FEED, { detail: { agentId: hex.id, content: `🔴 [${p.name}] 서버 장애 감지! ${p.serverUrl} — 즉시 점검에 들어갑니다.`, channel: "ops" } }));
           }
         }
 
@@ -72,7 +73,7 @@ export function useAutoPilot(
           update(p.id, { status: "active" });
           if (hex) {
             log(`${p.name} 서버 복구 → 자동 재개`, hex.emoji, hex.body, hex.name);
-            window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: hex.id, content: `✅ [${p.name}] 서버 복구 확인. 자동 재개 처리했습니다.`, channel: "ops" } }));
+            window.dispatchEvent(new CustomEvent(PHQ_EVENTS.FEED, { detail: { agentId: hex.id, content: `✅ [${p.name}] 서버 복구 확인. 자동 재개 처리했습니다.`, channel: "ops" } }));
           }
         }
       });
@@ -109,7 +110,7 @@ export function useAutoPilot(
         addT(p.id, `⚠️ ${days}일 방치 — 즉시 재개 필요`);
         if (sage) {
           log(`${p.name} ${days}일 방치 → priority HIGH 격상`, sage.emoji, sage.body, sage.name);
-          window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: sage.id, content: `⚠️ [${p.name}] ${days}일째 업데이트 없음. 팀 전체 주의 요망 — 즉시 상태 확인 부탁드립니다.`, channel: "general" } }));
+          window.dispatchEvent(new CustomEvent(PHQ_EVENTS.FEED, { detail: { agentId: sage.id, content: `⚠️ [${p.name}] ${days}일째 업데이트 없음. 팀 전체 주의 요망 — 즉시 상태 확인 부탁드립니다.`, channel: "general" } }));
         }
       });
 
@@ -124,7 +125,7 @@ export function useAutoPilot(
         update(p.id, { priority: "high" });
         if (rex) {
           log(`${p.name} 마감 D-${daysLeft} — 전사 긴급 지정`, rex.emoji, rex.body, rex.name);
-          window.dispatchEvent(new CustomEvent("phq-feed", { detail: { agentId: rex.id, content: `📢 [${p.name}] 마감 D-${daysLeft}. 전사 긴급 우선순위로 격상합니다. 모든 팀원은 해당 프로젝트에 집중해주세요.`, channel: "announcements" } }));
+          window.dispatchEvent(new CustomEvent(PHQ_EVENTS.FEED, { detail: { agentId: rex.id, content: `📢 [${p.name}] 마감 D-${daysLeft}. 전사 긴급 우선순위로 격상합니다. 모든 팀원은 해당 프로젝트에 집중해주세요.`, channel: "announcements" } }));
         }
       });
 

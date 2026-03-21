@@ -1,28 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import { AGENTS, ROOMS } from "../data/constants";
+import { PHQ_EVENTS } from "../data/events";
 import { useLogs } from "../contexts/LogsContext";
-import { daysSince } from "../utils/helpers";
 import { loadMyAvatar } from "../components/MyPage";
 import { usePageVisible } from "./usePageVisible";
+import { pickRoom, detectCrisisProject } from "../utils/agentRoom";
 import type { AgentState, Project, RoomKey } from "../types";
 
 // ── 상수 ────────────────────────────────────────────────────────────────
-const AGENT_TICK_MS         = 180;   // 캐릭터 이동 인터벌 (ms)
-const ROOM_CHANGE_EVERY     = 25;    // N 틱마다 방 이동 결정
-const MEETING_TICKS         = 35;    // 긴급 회의 지속 틱 수
-const MEETING_MIN_AGENTS    = 2;     // 회의 최소 소집 인원
-const MEETING_MAX_AGENTS    = 4;     // 회의 최대 소집 인원
-const CRISIS_NEGLECT_DAYS   = 5;     // 위기 판단 방치 기준 (일)
-const CRISIS_PENDING_TASKS  = 5;     // 위기 판단 미완료 태스크 기준 (개)
-// rank별 방 결정 확률
-const CTO_CEO_ROOM_PROB     = 0.6;
-const LEAD_MEETING_PROB     = 0.5;
-const SENIOR_OFFICE_PROB    = 0.7;
-const JUNIOR_LAB_PROB       = 0.5;
-const JUNIOR_OFFICE_PROB    = 0.75; // lab 이외 누적 확률
-const ASST_OFFICE_PROB      = 0.4;
-const ASST_LOUNGE_PROB      = 0.65; // office 이외 누적 확률
-const ASSIGNED_ROOM_PROB    = 0.8;  // 담당 프로젝트 방으로 이동할 확률
+const AGENT_TICK_MS      = 180; // 캐릭터 이동 인터벌 (ms)
+const ROOM_CHANGE_EVERY  = 25;  // N 틱마다 방 이동 결정
+const MEETING_TICKS      = 35;  // 긴급 회의 지속 틱 수
+const MEETING_MIN_AGENTS = 2;   // 회의 최소 소집 인원
+const MEETING_MAX_AGENTS = 4;   // 회의 최대 소집 인원
 
 const LOG_ACTIONS: Array<(p: { name: string }) => string> = [
   // 개발 작업
@@ -49,49 +39,6 @@ const LOG_ACTIONS: Array<(p: { name: string }) => string> = [
   () => `점심 휴식 중 🍱`,
   () => `팀원과 잡담 중`,
 ];
-
-// task·계급 기반 방 결정
-function pickRoom(agent: AgentState, task: string, assignedRoom?: RoomKey): RoomKey {
-  const t = task.toLowerCase();
-
-  // 서버 관련 → 서버실
-  if (/서버|배포|헬스체크|응답|장애|복구|ping|uptime/.test(t)) return "server";
-  // 회의·보고·검토 → 회의실 (단, 회의가 이미 진행 중이 아닐 때)
-  if (/회의|보고|검토|리뷰|스프린트|미팅/.test(t)) return "meeting";
-  // 휴식·라운지 활동 → 라운지 (주니어·어시스턴트 위주, 가끔)
-  if (/커피|휴식|점심|잡담/.test(t)) return "lounge";
-  // 문서·테스트·백업 → 창고(storage) 활용
-  if (/문서|백업|로그|테스트/.test(t)) return "storage";
-
-  // 계급별 기본 방
-  if (agent.rank === "CEO") return "ceo";
-  if (agent.rank === "CTO") return Math.random() < CTO_CEO_ROOM_PROB ? "ceo" : "office";
-  if (agent.rank === "Lead") return Math.random() < LEAD_MEETING_PROB ? "meeting" : "office";
-  if (agent.rank === "Senior") return Math.random() < SENIOR_OFFICE_PROB ? "office" : "lab";
-  if (agent.rank === "Junior") {
-    const r = Math.random();
-    return r < JUNIOR_LAB_PROB ? "lab" : r < JUNIOR_OFFICE_PROB ? "office" : "lounge";
-  }
-  if (agent.rank === "Assistant") {
-    const r = Math.random();
-    return r < ASST_OFFICE_PROB ? "office" : r < ASST_LOUNGE_PROB ? "lounge" : "lab";
-  }
-
-  // 담당 프로젝트 방
-  if (assignedRoom && Math.random() < ASSIGNED_ROOM_PROB) return assignedRoom;
-
-  // 완전 랜덤 fallback (모든 방 활용)
-  const allRooms: RoomKey[] = ["lab", "office", "server", "ceo", "lounge", "meeting", "storage"];
-  return allRooms[Math.floor(Math.random() * allRooms.length)];
-}
-
-function detectCrisisProject(projects: Project[]): boolean {
-  return projects.some(p =>
-    p.priority === "high" &&
-    p.status !== "complete" &&
-    (daysSince(p.lastActivity) >= CRISIS_NEGLECT_DAYS || p.tasks.filter(t => !t.done).length >= CRISIS_PENDING_TASKS)
-  );
-}
 
 function makeMyAgentState(): AgentState {
   const av = loadMyAvatar();
@@ -158,8 +105,8 @@ export function useAgents(projects: Project[], isAIChatOpen = false) {
     function onAvatarUpdate() {
       setAgentState(prev => prev.map(a => a.id === "me" ? { ...a, ...makeMyAgentState(), room: a.room, x: a.x, y: a.y } : a));
     }
-    window.addEventListener("phq-avatar-updated", onAvatarUpdate);
-    return () => window.removeEventListener("phq-avatar-updated", onAvatarUpdate);
+    window.addEventListener(PHQ_EVENTS.AVATAR_UPDATED, onAvatarUpdate);
+    return () => window.removeEventListener(PHQ_EVENTS.AVATAR_UPDATED, onAvatarUpdate);
   }, []);
 
   // 캐릭터 이동 — 탭 숨김 시 중단, 변경된 에이전트만 새 객체 생성

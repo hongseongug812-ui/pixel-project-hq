@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { readStorage, isPlainObject } from "../utils/storage";
 import type { Project } from "../types";
 
@@ -46,6 +46,12 @@ function saveCache(cache: Record<string, CacheEntry>) {
 export function useGitHub(projects: Project[]) {
   const [commitMap, setCommitMap] = useState<GitCommitMap>({});
   const [loading, setLoading] = useState<Set<string | number>>(new Set());
+
+  // 프로젝트 ID + githubUrl 조합 — useEffect deps로 사용해 매 렌더마다 문자열 생성 방지
+  const projectsKey = useMemo(
+    () => projects.map(p => `${p.id}:${p.githubUrl ?? ""}`).join(","),
+    [projects]
+  );
 
   useEffect(() => {
     const githubProjects = projects.filter(p => p.githubUrl?.includes("github.com"));
@@ -126,7 +132,7 @@ export function useGitHub(projects: Project[]) {
     Promise.all(githubProjects.map(fetchProject));
 
     return () => controller.abort();
-  }, [projects.map(p => p.id + (p.githubUrl ?? "")).join(",")]);
+  }, [projectsKey]);
 
   return { commitMap, loading };
 }

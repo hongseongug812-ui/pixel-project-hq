@@ -59,25 +59,14 @@ describe("useAgents — AI chat mode", () => {
   afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
 
   it("moves all agents to meeting room when isAIChatOpen = true", () => {
-    const { result } = renderHook(
-      ({ open }) => useAgents([], open),
-      { initialProps: { open: false } }
-    );
-
-    act(() => {
-      // rerender with chat open
-    });
-
-    const { rerender } = renderHook(
+    const { result, rerender } = renderHook(
       ({ open }) => useAgents([], open),
       { initialProps: { open: false } }
     );
 
     act(() => rerender({ open: true }));
 
-    expect(result.current.agentState.every(a => a.room === "meeting") ||
-      renderHook(() => useAgents([], true)).result.current.agentState.every(a => a.room === "meeting")
-    ).toBe(true);
+    expect(result.current.agentState.every(a => a.room === "meeting")).toBe(true);
   });
 
   it("sets isMeetingActive when isAIChatOpen = true", () => {
