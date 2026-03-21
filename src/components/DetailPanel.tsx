@@ -30,6 +30,7 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
   const [aiDescLoading, setAiDescLoading] = useState(false);
   const [aiError, setAiError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [newStack, setNewStack] = useState("");
   const descTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -277,17 +278,36 @@ export default function DetailPanel({ project: p, onClose, onToggle, onDelete, o
         </div>
       )}
 
-      {p.stack?.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-          {p.stack.map(s => (
-            <span key={s} style={{ fontFamily: PF, fontSize: 4, color: "#888", background: "#1a1a1e", padding: "1px 4px", border: "1px solid #222" }}>{s}</span>
-          ))}
-        </div>
-      )}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center" }}>
+        {(p.stack ?? []).map(s => (
+          <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 2, fontFamily: PF, fontSize: 4, color: "#888", background: "#1a1a1e", padding: "1px 4px", border: "1px solid #222" }}>
+            {s}
+            <button onClick={() => onUpdate(p.id, { stack: (p.stack ?? []).filter(x => x !== s) })} style={{ all: "unset", cursor: "pointer", color: "#444", fontSize: 5, lineHeight: 1 }} onMouseEnter={e => (e.currentTarget.style.color = "#ef4444")} onMouseLeave={e => (e.currentTarget.style.color = "#444")}>×</button>
+          </span>
+        ))}
+        <input
+          value={newStack}
+          onChange={e => setNewStack(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter" && newStack.trim()) {
+              const tag = newStack.trim();
+              if (!(p.stack ?? []).includes(tag)) onUpdate(p.id, { stack: [...(p.stack ?? []), tag] });
+              setNewStack("");
+            }
+          }}
+          placeholder="+ 스택"
+          style={{ fontFamily: PF, fontSize: 4, color: "#555", background: "transparent", border: "none", outline: "none", width: 44, padding: "1px 0" }}
+        />
+      </div>
 
       <div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: PF, fontSize: 4, color: "#555", marginBottom: 4 }}>
-          <span>PROGRESS</span><span style={{ color: rm.color }}>{p.progress}%</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: PF, fontSize: 4, color: "#555", marginBottom: 4 }}>
+          <span>PROGRESS</span>
+          <input
+            type="number" min={0} max={100} value={p.progress}
+            onChange={e => { const v = Math.max(0, Math.min(100, Number(e.target.value))); onUpdate(p.id, { progress: v }); }}
+            style={{ width: 38, fontFamily: PF, fontSize: 4, color: rm.color, background: "#0a0a0c", border: "1px solid #1e1e28", padding: "1px 4px", outline: "none", textAlign: "right" }}
+          />
         </div>
         <input type="range" min={0} max={100} value={p.progress}
           onChange={e => onUpdate(p.id, { progress: Number(e.target.value) })}

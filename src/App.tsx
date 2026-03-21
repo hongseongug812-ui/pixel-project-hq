@@ -61,6 +61,7 @@ export default function App() {
   const [aiChatOpen,   setAiChatOpen]  = useState(false);
   const [agentChatId,  setAgentChatId] = useState<string | null>(null);
   const [showHire,     setShowHire]    = useState(false);
+  const [hideComplete, setHideComplete] = useState(false);
 
   const { projects, setProjects, loadingData, saving, loadProjects, syncLocal, addProject, deleteProject, updateProject, toggleTask, addTask } = useProjects(user, toast, isDemo);
   const { agentState, tick, isMeetingActive } = useAgents(projects, aiChatOpen);
@@ -148,6 +149,7 @@ export default function App() {
     const q = search.trim().toLowerCase();
     const base = projects.filter(p =>
       (filter === "all" || p.status === filter) &&
+      !(hideComplete && p.status === "complete" && filter === "all") &&
       (!q || p.name.toLowerCase().includes(q) ||
              (p.description || "").toLowerCase().includes(q) ||
              (p.stack || []).some(s => s.toLowerCase().includes(q)) ||
@@ -163,7 +165,7 @@ export default function App() {
         default:             return (b.lastActivity ?? "").localeCompare(a.lastActivity ?? ""); // lastActivity
       }
     });
-  }, [projects, filter, search, sort]);
+  }, [projects, filter, search, sort, hideComplete]);
 
   const grouped = useMemo(() => {
     const g: Record<string, Project[]> = {};
@@ -285,11 +287,13 @@ export default function App() {
         search={search}
         sort={sort}
         showSidebar={showSidebar}
+        hideComplete={hideComplete}
         onViewMode={setViewMode}
         onFilter={setFilter}
         onSearch={setSearch}
         onSort={setSort}
         onToggleSidebar={() => setShowSidebar(s => !s)}
+        onToggleHideComplete={() => setHideComplete(h => !h)}
         onAdd={() => { setShowAdd(true); setFileAnalysis(null); }}
         onHire={() => setShowHire(true)}
         onStats={() => setShowStats(true)}

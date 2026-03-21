@@ -94,12 +94,39 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "delete_project",
+      description: "프로젝트 삭제. 사용자가 명시적으로 삭제/제거/없애달라고 요청할 때만 사용.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "number", description: "삭제할 프로젝트 ID" },
+        },
+        required: ["id"],
+      },
+    },
+  },
 ];
 
 function systemPrompt(projects: Project[]): string {
-  const list = projects.map(p =>
-    `[ID:${p.id}] ${p.name} | ${p.status} | 진행률:${p.progress}% | 방:${p.room} | 태스크:${p.tasks.map(t => `${t.id}(${t.done ? "✓" : "✗"}${t.text})`).join(",")}`
-  ).join("\n");
+  const list = projects.map(p => {
+    const doneTasks = p.tasks.filter(t => t.done).length;
+    const parts = [
+      `[ID:${p.id}] "${p.name}"`,
+      `상태:${p.status}`, `진행률:${p.progress}%`,
+      `우선순위:${p.priority ?? "없음"}`,
+      `방:${p.room}`,
+      p.targetDate ? `마감:${p.targetDate}` : null,
+      p.budget ? `예산:${p.budget}만` : null,
+      `태스크:${doneTasks}/${p.tasks.length}완료`,
+      p.tasks.filter(t => !t.done).length > 0
+        ? `미완료:[${p.tasks.filter(t => !t.done).map(t => `${t.id}:"${t.text}"`).join(",")}]`
+        : null,
+    ].filter(Boolean);
+    return parts.join(" | ");
+  }).join("\n");
 
   const roster = AGENTS.map(a =>
     `- ${a.emoji} ${a.name} [${a.rank}] (${a.aiModel}): ${a.personality}`
@@ -214,6 +241,10 @@ export function useAIChat(projects: Project[], handlers: ProjectHandlers, toast:
               featured: false, startDate: new Date().toISOString().slice(0, 10), endDate: null,
               tasks: [], assignedAgentId: null, budget: null, targetDate: null,
             });
+          } else if (call.function.name === "delete_project") {
+            const { id } = args as { id: number };
+            handlers.deleteProject(id);
+            result = `프로젝트 ID:${id} 삭제 완료`;
           } else {
             result = "알 수 없는 도구";
           }

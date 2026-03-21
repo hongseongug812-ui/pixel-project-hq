@@ -8,11 +8,13 @@ interface Props {
   search: string;
   sort: SortKey;
   showSidebar: boolean;
+  hideComplete: boolean;
   onViewMode: (v: string) => void;
   onFilter: (f: string) => void;
   onSearch: (q: string) => void;
   onSort: (s: SortKey) => void;
   onToggleSidebar: () => void;
+  onToggleHideComplete: () => void;
   onAdd: () => void;
   onHire: () => void;
   onStats: () => void;
@@ -43,8 +45,8 @@ const SORT_OPTIONS: [SortKey, string][] = [
 ];
 
 export default function AppToolbar({
-  viewMode, filter, search, sort, showSidebar,
-  onViewMode, onFilter, onSearch, onSort, onToggleSidebar, onAdd, onHire, onStats,
+  viewMode, filter, search, sort, showSidebar, hideComplete,
+  onViewMode, onFilter, onSearch, onSort, onToggleSidebar, onToggleHideComplete, onAdd, onHire, onStats,
 }: Props) {
   return (
     <nav
@@ -100,6 +102,19 @@ export default function AppToolbar({
       )}
 
       <div style={{ flex: 1 }} />
+
+      {/* 완료 숨기기 토글 (GOD 뷰에서만) */}
+      {viewMode === "god" && (
+        <button
+          onClick={onToggleHideComplete}
+          aria-pressed={hideComplete}
+          aria-label={hideComplete ? "완료 프로젝트 표시" : "완료 프로젝트 숨기기"}
+          title={hideComplete ? "완료 표시" : "완료 숨기기"}
+          style={{ all: "unset", cursor: "pointer", fontFamily: PF, fontSize: 4, padding: "3px 7px", color: hideComplete ? "#000" : "#555", background: hideComplete ? "#a78bfa" : "#111118", border: `1px solid ${hideComplete ? "#a78bfa" : "#1e1e28"}` }}
+        >
+          {hideComplete ? "✓ 숨김" : "완료▾"}
+        </button>
+      )}
 
       {/* 정렬 (GOD 뷰에서만) */}
       {viewMode === "god" && (
